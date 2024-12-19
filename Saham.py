@@ -3,19 +3,15 @@ import yfinance as yf
 import pandas as pd
 import pickle
 import os
+import time
 from streamlit_option_menu import option_menu
+
 
 HISTORY_FILE = "history.pkl"
 
 def apply_global_css():
     button_style = """
     <style>
-        div.stButton > button {
-        transition: transform 0.2s ease-in-out;
-        }
-        div.stButton > button:hover {
-        transform: scale(1.1);
-        }
         div.stButton > button {
             background-color: #0d6efd;
             color: white;
@@ -25,10 +21,6 @@ def apply_global_css():
             font-size: 18px;
             box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
             transition: all 0.3s ease;
-        }
-        div.stButton > button:hover {
-            background-color: #0b5ed7;
-            box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.3);
         }
         
     </style>
@@ -105,7 +97,7 @@ def calculate_dividend_yield(dividen_per_saham, harga_beli):
     return (dividen_per_saham / harga_beli) * 100
 
 def stock_scraper_page():
-    st.info('Kemampuan membeli sudah disesuaikan dengan modal untuk mendapatkan jumlah lot yang sesuai.')
+    st.info('Catatan: Data yang digunakan berasal dari yahoo finance, dan kemampuan membeli sudah disesuaikan dengan modal untuk mendapatkan jumlah lot yang sesuai.')
     symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', 'BBCA,BBRI,GOTO,TLKM,WSKT,ASII')
     symbols_list = [symbol.strip().upper() + '.JK' if '.JK' not in symbol else symbol.strip().upper() for symbol in symbols.split(',')]
     modal_rupiah = st.number_input("Masukkan modal dalam Rupiah", step=1000000, format="%d")
@@ -151,15 +143,29 @@ def calculator_page(title, fee_beli, fee_jual):
     st.header(title)
     st.markdown("<hr>", unsafe_allow_html=True)
 
+    # Add custom fee option
+    if title == "Custom":
+        st.subheader("Masukkan Fee Kustom")
+        fee_beli = st.number_input("Fee Beli (persentase):", min_value=0.0, step=0.1, format="%.2f") / 100
+        fee_jual = st.number_input("Fee Jual (persentase):", min_value=0.0, step=0.1, format="%.2f") / 100
+
+    # Other inputs
     jumlah_lot = st.number_input("Jumlah Lot:", min_value=0, step=1, format="%d")
     harga_beli = st.number_input("Harga Beli (per saham):", min_value=0.0, step=1000.0, format="%.0f")
     harga_jual = st.number_input("Harga Jual (per saham):", min_value=0.0, step=1000.0, format="%.0f")
-    include_fee_beli = st.checkbox("Masukkan Fee Beli")
-    include_fee_jual = st.checkbox("Masukkan Fee Jual")
+    include_fee_beli = st.checkbox("Masukkan Fee Beli", value=True)
+    include_fee_jual = st.checkbox("Masukkan Fee Jual", value=True)
     include_dividend = st.checkbox("Masukkan Dividen")
 
     fee_beli_final = fee_beli if include_fee_beli else 0
     fee_jual_final = fee_jual if include_fee_jual else 0
+
+    # Initialize variables
+    profit_loss = 0
+    profit_loss_percentage = 0
+    total_dividen = 0
+    dividend_yield = 0
+    hasil = "Tidak ada perubahan"
 
     if include_dividend:
         dividen_per_saham = st.number_input("Dividen per Saham:", min_value=0, step=1, format="%d")
@@ -169,11 +175,6 @@ def calculator_page(title, fee_beli, fee_jual):
             st.write(f"Total Dividen: Rp {total_dividen:,.0f}")
             st.write(f"Dividend Yield: {dividend_yield:.2f}%")
             st.markdown('<hr style="border: 1px solid #e0e0e0;">', unsafe_allow_html=True)
-
-    else:
-        dividen_per_saham = 0
-        total_dividen = 0
-        dividend_yield = 0
 
     if st.button("Hitung", key="calculate"):
         if jumlah_lot > 0 and harga_beli > 0 and harga_jual > 0:
@@ -191,30 +192,34 @@ def calculator_page(title, fee_beli, fee_jual):
                 st.error("Loss!")
             else:
                 st.info("Break Even!")
+
         else:
             st.error("Jumlah Lot, Harga Beli, dan Harga Jual harus lebih besar dari 0.")
 
-            if "calculator_history" not in st.session_state:
-                st.session_state.calculator_history = []
-            
-            calculation_record = {
-                "platform": title,
-                "jumlah_lot": jumlah_lot,
-                "harga_beli": harga_beli,
-                "harga_jual": harga_jual,
-                "profit_loss": profit_loss,
-                "profit_loss_percentage": profit_loss_percentage,
-                "dividen": total_dividen,
-                "dividend_yield": dividend_yield,
-                "hasil": hasil
-            }
-            
-            st.session_state.calculator_history.append(calculation_record)
-            save_history({"scraper": st.session_state.get("scraper_history", []), 
-                         "calculator": st.session_state.calculator_history})
+        # Record the calculation result for history
+        if "calculator_history" not in st.session_state:
+            st.session_state.calculator_history = []
+
+        calculation_record = {
+            "platform": title,
+            "jumlah_lot": jumlah_lot,
+            "harga_beli": harga_beli,
+            "harga_jual": harga_jual,
+            "profit_loss": profit_loss,
+            "profit_loss_percentage": profit_loss_percentage,
+            "dividen": total_dividen,
+            "dividend_yield": dividend_yield,
+            "hasil": hasil
+        }
+
+        st.session_state.calculator_history.append(calculation_record)
+        save_history({"scraper": st.session_state.get("scraper_history", []), 
+                     "calculator": st.session_state.calculator_history})
+
+
 
 def compound_interest_page():
-    st.info('Bunga berbunga atau compound interest adalah jenis bunga yang dihitung tidak hanya dari jumlah pokok awal, tetapi juga dari bunga yang sudah diperoleh.')
+    st.info('Bunga-berbunga atau compound interest adalah jenis bunga yang dihitung tidak hanya dari jumlah pokok awal, tetapi juga dari bunga yang sudah diperoleh.')
 
     def calculate_compound_interest(firstm, rate, years, additional_investment=0, frequency='monthly'):
         data = []
@@ -281,8 +286,8 @@ def main():
     elif menu_selection == "Calculator":
         calculator_submenu = option_menu(
             "Calculator",
-            ["IPOT", "Stockbit", "BNI Bions"],
-            icons=["calculator", "calculator", "calculator"],
+            ["IPOT", "Stockbit", "BNI Bions", "Custom"],
+            icons=["calculator", "calculator", "calculator", "calculator"],
             menu_icon="calculator",
             default_index=0,
             orientation="horizontal",
@@ -291,9 +296,11 @@ def main():
         platforms = {
             "IPOT": (0.0019, 0.0029),
             "Stockbit": (0.0015, 0.0025),
-            "BNI Bions": (0.0017, 0.0027)
+            "BNI Bions": (0.0017, 0.0027),
+            "Custom": (0, 0)  # Custom fees will be entered by the user
         }
         calculator_page(calculator_submenu, *platforms[calculator_submenu])
+
 
     elif menu_selection == "Compound Interest":
         compound_interest_page()
