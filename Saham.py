@@ -6,7 +6,6 @@ import os
 import time
 from streamlit_option_menu import option_menu
 
-
 HISTORY_FILE = "history.pkl"
 
 def apply_global_css():
@@ -142,13 +141,11 @@ def calculator_page(title, fee_beli, fee_jual):
     st.header(title)
     st.markdown("<hr>", unsafe_allow_html=True)
 
-    # Add custom fee option
     if title == "Custom":
         st.subheader("Masukkan Fee Kustom")
         fee_beli = st.number_input("Fee Beli (persentase):", min_value=0.0, step=0.1, format="%.2f") / 100
         fee_jual = st.number_input("Fee Jual (persentase):", min_value=0.0, step=0.1, format="%.2f") / 100
 
-    # Other inputs
     jumlah_lot = st.number_input("Jumlah Lot:", min_value=0, step=1, format="%d")
     harga_beli = st.number_input("Harga Beli (per saham):", min_value=0.0, step=1000.0, format="%.0f")
     harga_jual = st.number_input("Harga Jual (per saham):", min_value=0.0, step=1000.0, format="%.0f")
@@ -159,7 +156,6 @@ def calculator_page(title, fee_beli, fee_jual):
     fee_beli_final = fee_beli if include_fee_beli else 0
     fee_jual_final = fee_jual if include_fee_jual else 0
 
-    # Initialize variables
     profit_loss = 0
     profit_loss_percentage = 0
     total_dividen = 0
@@ -195,7 +191,6 @@ def calculator_page(title, fee_beli, fee_jual):
         else:
             st.error("Jumlah Lot, Harga Beli, dan Harga Jual harus lebih besar dari 0.")
 
-        # Record the calculation result for history
         if "calculator_history" not in st.session_state:
             st.session_state.calculator_history = []
 
@@ -214,8 +209,6 @@ def calculator_page(title, fee_beli, fee_jual):
         st.session_state.calculator_history.append(calculation_record)
         save_history({"scraper": st.session_state.get("scraper_history", []), 
                      "calculator": st.session_state.calculator_history})
-
-
 
 def compound_interest_page():
     st.info('Bunga-berbunga atau compound interest adalah jenis bunga yang dihitung tidak hanya dari jumlah pokok awal, tetapi juga dari bunga yang sudah diperoleh.')
@@ -297,7 +290,7 @@ def main():
             "IPOT": (0.0019, 0.0029),
             "Stockbit": (0.0015, 0.0025),
             "BNI Bions": (0.0017, 0.0027),
-            "Custom": (0, 0)  # Custom fees will be entered by the user
+            "Custom": (0, 0)
         }
         calculator_page(calculator_submenu, *platforms[calculator_submenu])
 
