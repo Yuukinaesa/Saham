@@ -7,12 +7,37 @@ from streamlit_option_menu import option_menu
 
 HISTORY_FILE = "history.pkl"
 
+def apply_global_css():
+    button_style = """
+    <style>
+        div.stButton > button {
+        transition: transform 0.2s ease-in-out;
+        }
+        div.stButton > button:hover {
+        transform: scale(1.1);
+        }
+        div.stButton > button {
+            background-color: #0d6efd;
+            color: white;
+            border-radius: 8px;
+            width: 100%;
+            height: 50px;
+            font-size: 18px;
+            box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        div.stButton > button:hover {
+            background-color: #0b5ed7;
+            box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+    </style>
+    """
+    st.markdown(button_style, unsafe_allow_html=True)
+
 def save_history(data, filename=HISTORY_FILE):
     if not isinstance(data, dict):
-        data = {
-            "scraper": [],
-            "calculator": []
-        }
+        data = {"scraper": [], "calculator": []}
     try:
         with open(filename, "wb") as f:
             pickle.dump(data, f)
@@ -24,9 +49,20 @@ def load_history(filename=HISTORY_FILE):
         try:
             with open(filename, "rb") as f:
                 return pickle.load(f)
-        except:
+        except pickle.UnpicklingError:
+            st.error("History file is corrupted and cannot be loaded.")
+            return {"scraper": [], "calculator": []}
+        except Exception as e:
+            st.error(f"An error occurred while loading history: {str(e)}")
             return {"scraper": [], "calculator": []}
     return {"scraper": [], "calculator": []}
+
+def initialize_session_state(key, default_value):
+    if key not in st.session_state:
+        st.session_state[key] = default_value
+
+def format_dataframe(df, columns):
+    return df.style.format(columns)
 
 def fetch_stock_data(symbols):
     data = {}
@@ -49,23 +85,29 @@ def fetch_stock_data(symbols):
     return data
 
 def calculate_profit_loss(jumlah_lot, harga_beli, harga_jual, fee_beli, fee_jual):
+    if harga_beli == 0 or harga_jual == 0:
+        st.error("Harga beli atau harga jual tidak bisa 0.")
+        return 0, 0, 0, 0
     total_beli = jumlah_lot * 100 * harga_beli * (1 + fee_beli)
     total_jual = jumlah_lot * 100 * harga_jual * (1 - fee_jual)
     profit_loss = total_jual - total_beli
-    profit_loss_percentage = (profit_loss / total_beli) * 100 if total_beli else 0
+    profit_loss_percentage = (profit_loss / total_beli) * 100 if total_beli != 0 else 0
     return total_beli, total_jual, profit_loss, profit_loss_percentage
 
 def calculate_dividend(jumlah_lot, dividen_per_saham):
+    if dividen_per_saham == 0:
+        return 0
     return jumlah_lot * dividen_per_saham * 100
 
 def calculate_dividend_yield(dividen_per_saham, harga_beli):
-    return (dividen_per_saham / harga_beli) * 100 if harga_beli else 0
+    if harga_beli == 0:
+        return 0
+    return (dividen_per_saham / harga_beli) * 100
 
 def stock_scraper_page():
-    symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', 'BBCA,BBRI,GOTO,TLKM,WSKT,ASII')  # Hilangkan .JK dari input
-    
+    st.info('Kemampuan membeli sudah disesuaikan dengan modal untuk mendapatkan jumlah lot yang sesuai.')
+    symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', 'BBCA,BBRI,GOTO,TLKM,WSKT,ASII')
     symbols_list = [symbol.strip().upper() + '.JK' if '.JK' not in symbol else symbol.strip().upper() for symbol in symbols.split(',')]
-    
     modal_rupiah = st.number_input("Masukkan modal dalam Rupiah", step=1000000, format="%d")
 
     if st.button('Ambil Data'):
@@ -77,12 +119,11 @@ def stock_scraper_page():
             df['Jumlah Saham'] = df['Jumlah Lot'] * 100
             df['Dividen'] = df['Jumlah Saham'] * df['Forward Annual Dividend Rate (DPS)']
             df['Modal'] = df['Jumlah Lot'] * 100 * df['Current Price']
-
             df['Symbol'] = df['Symbol'].str.replace('.JK', '', regex=False)
 
             st.subheader('Data Statistik Terbaru')
             with st.expander("Tampilkan Data Statistik"):
-                st.dataframe(df.reset_index(drop=True).style.format({
+                st.dataframe(format_dataframe(df.reset_index(drop=True), {
                     'Current Price': 'Rp{:,.0f}',
                     'Price/Book (PBVR)': '{:.2f}',
                     'Trailing P/E (PER)': '{:.2f}',
@@ -102,7 +143,7 @@ def stock_scraper_page():
             st.session_state.scraper_history.append(df.to_dict('records'))
             save_history({"scraper": st.session_state.scraper_history, 
                          "calculator": st.session_state.get("calculator_history", [])})
-            
+
         except Exception as e:
             st.error(f"Terjadi kesalahan: {str(e)}")
 
@@ -128,30 +169,30 @@ def calculator_page(title, fee_beli, fee_jual):
             st.write(f"Total Dividen: Rp {total_dividen:,.0f}")
             st.write(f"Dividend Yield: {dividend_yield:.2f}%")
             st.markdown('<hr style="border: 1px solid #e0e0e0;">', unsafe_allow_html=True)
+
     else:
         dividen_per_saham = 0
         total_dividen = 0
         dividend_yield = 0
 
     if st.button("Hitung", key="calculate"):
-        if jumlah_lot > 0 and harga_beli > 0:
+        if jumlah_lot > 0 and harga_beli > 0 and harga_jual > 0:
             total_beli, total_jual, profit_loss, profit_loss_percentage = calculate_profit_loss(
                 jumlah_lot, harga_beli, harga_jual, fee_beli_final, fee_jual_final
             )
-
-            hasil = "Profit" if profit_loss > 0 else "Loss" if profit_loss < 0 else "Break Even"
-
+            hasil = "Profit" if profit_loss > 0 else "Loss" if profit_loss < 0 else "Tidak ada perubahan"
             st.write(f"Total Beli: Rp {total_beli:,.0f}")
             st.write(f"Total Jual: Rp {total_jual:,.0f}")
             st.write(f"Profit/Loss: Rp {profit_loss:,.0f}")
-            st.write(f"Profit/Loss (%): {profit_loss_percentage:.2f}%")
-
+            st.write(f"Profit/Loss Percentage: {profit_loss_percentage:.2f}%")
             if hasil == "Profit":
                 st.success("Profit!")
             elif hasil == "Loss":
                 st.error("Loss!")
             else:
                 st.info("Break Even!")
+        else:
+            st.error("Jumlah Lot, Harga Beli, dan Harga Jual harus lebih besar dari 0.")
 
             if "calculator_history" not in st.session_state:
                 st.session_state.calculator_history = []
@@ -172,14 +213,46 @@ def calculator_page(title, fee_beli, fee_jual):
             save_history({"scraper": st.session_state.get("scraper_history", []), 
                          "calculator": st.session_state.calculator_history})
 
+def compound_interest_page():
+    st.info('Bunga berbunga atau compound interest adalah jenis bunga yang dihitung tidak hanya dari jumlah pokok awal, tetapi juga dari bunga yang sudah diperoleh.')
+
+    def calculate_compound_interest(firstm, rate, years, additional_investment=0, frequency='monthly'):
+        data = []
+        total_months = int(years * 12)
+        amount = firstm
+        for month in range(1, total_months + 1):
+            amount = (amount + additional_investment) * (1 + rate / 100 / 12)
+            year = (month - 1) // 12 + 1
+            data.append({
+                'Year': year,
+                'Month': month,
+                'Amount': round(amount, 2)
+            })
+        return pd.DataFrame(data)
+
+    firstm = st.number_input('💰 Masukkan nilai awal investasi', step=1000000, format="%d")
+    rate = st.number_input('📈 Masukkan tingkat bunga per tahun (%)', step=5, format="%d")
+    years = st.number_input('🗓️ Masukkan jumlah tahun (misal: 5.5 untuk 5 tahun 5 bulan)', step=0.1, format="%.1f")
+    additional_investment = st.number_input('➕ Masukkan tambahan investasi per bulan', step=1000000, format="%d")
+
+    if st.button('Hitung'):
+        df = calculate_compound_interest(firstm, rate, years, additional_investment)
+        with st.expander('📊 Hasil perhitungan bunga berbunga:', expanded=True):
+            st.dataframe(df.set_index(df.index + 1), use_container_width=True, hide_index=True)
+
+        st.markdown('<hr style="border: 1px solid #e0e0e0;">', unsafe_allow_html=True)
+        for year in range(1, int(years) + 1):
+            yearly_data = df[df['Year'] == year]
+            with st.expander(f'📅 Tahun {year}', expanded=False):
+                st.dataframe(yearly_data[['Month', 'Amount']].set_index(yearly_data.index + 1), use_container_width=True, hide_index=True)
+
 def main():
     st.set_page_config(page_title="Saham IDX", layout="wide")
+    apply_global_css()
     st.latex("Yuukinaesa ~|~ Arfan")
 
-    if "scraper_history" not in st.session_state:
-        st.session_state.scraper_history = []
-    if "calculator_history" not in st.session_state:
-        st.session_state.calculator_history = []
+    initialize_session_state("scraper_history", [])
+    initialize_session_state("calculator_history", [])
 
     try:
         history = load_history()
@@ -204,7 +277,7 @@ def main():
 
     if menu_selection == "Scraper Saham":
         stock_scraper_page()
-    
+
     elif menu_selection == "Calculator":
         calculator_submenu = option_menu(
             "Calculator",
@@ -227,18 +300,19 @@ def main():
 
     elif menu_selection == "History":
         st.title("History")
-        
+
         st.subheader("Scraper Saham History")
         if st.session_state.scraper_history:
             for idx, history_entry in enumerate(st.session_state.scraper_history):
                 with st.expander(f"Scraper History #{idx + 1}"):
                     df = pd.DataFrame(history_entry)
-                    st.dataframe(df.style.format({
+                    st.dataframe(format_dataframe(df, {
                         'Current Price': 'Rp{:,.0f}',
                         'Price/Book (PBVR)': '{:.2f}',
                         'Trailing P/E (PER)': '{:.2f}',
                         'Total Debt/Equity (mrq) (DER)': '{:.2f}',
                         'Return on Equity (%) (ROE)': '{:.0f}%',
+                        'Diluted EPS (ttm) (EPS)': '{:.0f}',
                         'Forward Annual Dividend Rate (DPS)': 'Rp{:,.0f}',
                         'Forward Annual Dividend Yield (%)': '{:.2f}%'
                     }))
@@ -248,7 +322,7 @@ def main():
         st.subheader("Calculator History")
         if st.session_state.calculator_history:
             df = pd.DataFrame(st.session_state.calculator_history)
-            st.dataframe(df.style.format({
+            st.dataframe(format_dataframe(df, {
                 'harga_beli': 'Rp{:,.0f}',
                 'harga_jual': 'Rp{:,.0f}',
                 'profit_loss': 'Rp{:,.0f}',
@@ -264,60 +338,6 @@ def main():
             save_history({"scraper": [], "calculator": []})
             st.success("All history cleared successfully!")
             st.rerun()
-    
-def compound_interest_page():
-    st.info('Bunga berbunga atau compound interest adalah jenis bunga yang dihitung tidak hanya dari jumlah pokok awal, tetapi juga dari bunga yang sudah diperoleh.')
-
-    def calculate_compound_interest(firstm, rate, years, additional_investment=0, frequency='monthly'):
-        data = []
-        total_months = int(years * 12)
-        amount = firstm
-        for month in range(1, total_months + 1):
-            amount = (amount + additional_investment) * (1 + rate / 100 / 12)
-            year = (month - 1) // 12 + 1
-            data.append({
-                'Year': year,
-                'Month': month,
-                'Amount': round(amount, 2)
-            })
-        return pd.DataFrame(data)
-
-    firstm = st.number_input('💰 Masukkan nilai awal investasi', step=1000000, format="%d")
-    rate = st.number_input('📈 Masukkan tingkat bunga per tahun (%)', step=5, format="%d")
-    years = st.number_input('🗓️ Masukkan jumlah tahun (misal: 5.5 untuk 5 tahun 5 bulan)', step=0.1, format="%.1f")
-    additional_investment = st.number_input('➕ Masukkan tambahan investasi per bulan', step=1000000, format="%d")
-
-    button_style = """
-        <style>
-            div.stButton > button {
-                background-color: #0d6efd;
-                color: white;
-                border-radius: 8px;
-                width: 100%;
-                height: 50px;
-                font-size: 18px;
-                box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.2);
-                transition: all 0.3s ease;
-            }
-            div.stButton > button:hover {
-                background-color: #0b5ed7;
-                box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.3);
-            }
-        </style>
-    """
-    st.markdown(button_style, unsafe_allow_html=True)
-
-    if st.button('Hitung'):
-        df = calculate_compound_interest(firstm, rate, years, additional_investment)
-        with st.expander('📊 Hasil perhitungan bunga berbunga:', expanded=True):
-            st.dataframe(df.set_index(df.index + 1), use_container_width=True, hide_index=True)
-
-        st.markdown('<hr style="border: 1px solid #e0e0e0;">', unsafe_allow_html=True)
-        # Tampilkan hasil per tahun
-        for year in range(1, int(years) + 1):
-            yearly_data = df[df['Year'] == year]
-            with st.expander(f'📅 Tahun {year}', expanded=False):
-                st.dataframe(yearly_data[['Month', 'Amount']].set_index(yearly_data.index + 1), use_container_width=True, hide_index=True)
 
 if __name__ == "__main__":
     main()
