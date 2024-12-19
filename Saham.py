@@ -107,11 +107,13 @@ def stock_scraper_page():
             stocks_data = fetch_stock_data(symbols_list)
             df = pd.DataFrame(stocks_data).T
             df['Jumlah Saham'] = modal_rupiah / df['Current Price'].replace(0, pd.NA)
-            df['Jumlah Lot'] = (df['Jumlah Saham'] // 100).fillna(0).astype(int)
+            df['Jumlah Saham'] = pd.to_numeric(df['Jumlah Saham'], errors='coerce')
+            df['Jumlah Lot'] = (df['Jumlah Saham'] // 100).fillna(0).astype('Int64')
             df['Jumlah Saham'] = df['Jumlah Lot'] * 100
             df['Dividen'] = df['Jumlah Saham'] * df['Forward Annual Dividend Rate (DPS)']
             df['Modal'] = df['Jumlah Lot'] * 100 * df['Current Price']
             df['Symbol'] = df['Symbol'].str.replace('.JK', '', regex=False)
+            pd.set_option('future.no_silent_downcasting', True)
 
             st.subheader('Data Statistik Terbaru')
             with st.expander("Tampilkan Data Statistik"):
