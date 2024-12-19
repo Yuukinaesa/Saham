@@ -252,6 +252,7 @@ def compound_interest_page():
 
 def main():
     st.set_page_config(page_title="Saham IDX", layout="wide")
+    st.toast('📢 Beberapa fitur tidak di publish, terima kasih!')
     apply_global_css()
     st.latex("Yuukinaesa ~|~ Arfan")
 
