@@ -120,7 +120,11 @@ def stock_scraper_page():
 
             st.subheader('Data Statistik Terbaru')
             with st.expander("Tampilkan Data Statistik"):
-                st.dataframe(format_dataframe(df.reset_index(drop=True), format_dict))
+                # Reset indeks dan mulai dari 1
+                df_display = df.reset_index(drop=True)
+                df_display.index = df_display.index + 1  # Mulai dari 1
+
+                st.dataframe(format_dataframe(df_display, format_dict))
 
         except Exception as e:
             st.error(f"Terjadi kesalahan: {str(e)}")
