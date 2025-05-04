@@ -58,6 +58,8 @@ streamlit run Saham.py
 - yfinance
 - scipy
 
+---
+
 - Website: [saham.arfan.biz.id](https://saham.arfan.biz.id)
 
 ---
