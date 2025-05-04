@@ -1177,6 +1177,16 @@ def main() -> None:
             }
         )
 
+        # Tambahkan link Instagram dan AI Studio di sidebar
+        st.markdown("""
+        <div style='margin-top: 32px; padding: 12px; background-color: #f8f9fa; border-radius: 8px;'>
+            <h4 style='color: #1a1a1a; margin-bottom: 12px;'>AI Screener Saham</h4>
+            <a href='https://aistudio.instagram.com/ai/704778415445100?utm_source=ai_agent' target='_blank' style='text-decoration: none; color: #2563eb; display: flex; align-items: center;'>
+                <span style='margin-right: 8px;'>🤖</span> Check out this AI on Instagram!
+            </a>
+        </div>
+        """, unsafe_allow_html=True)
+
     with col2:
         # Header content
         st.markdown("""

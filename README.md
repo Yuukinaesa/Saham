@@ -58,12 +58,6 @@ streamlit run Saham.py
 - yfinance
 - scipy
 
-## 📝 Lisensi
-
-MIT License
-
 - Website: [saham.arfan.biz.id](https://saham.arfan.biz.id)
 
 ---
-
-Dibuat dengan ❤️ oleh [Yuukinaesa](https://github.com/Yuukinaesa)
