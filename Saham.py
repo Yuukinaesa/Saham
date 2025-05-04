@@ -232,14 +232,31 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
     data = {}
     for symbol in symbols:
         try:
+            # Pastikan simbol memiliki format yang benar
+            if not symbol.endswith('.JK'):
+                symbol = f"{symbol}.JK"
+                
             stock = yf.Ticker(symbol)
             info = stock.info
             
             if not info:
-                st.warning(f"Tidak dapat mengambil data untuk {symbol}")
+                st.warning(f"Tidak ada info untuk {symbol}")
                 continue
                 
-            current_price = round(info.get('regularMarketPrice', info.get('regularMarketPreviousClose', 0)))
+            # Cek kunci yang tersedia
+            available_keys = list(info.keys())
+            
+            # Coba beberapa kunci untuk mendapatkan harga
+            current_price = None
+            price_keys = ['regularMarketPrice', 'regularMarketPreviousClose', 'currentPrice', 'previousClose']
+            for key in price_keys:
+                if key in info and info[key] is not None and info[key] > 0:
+                    current_price = info[key]
+                    break
+            
+            if current_price is None:
+                st.warning(f"Tidak dapat menemukan harga valid untuk {symbol}")
+                continue
             
             # Pastikan nilai persentase dalam bentuk desimal
             forward_dividend_yield = float(info.get('dividendYield', 0))
@@ -269,6 +286,7 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
                 'Forward Annual Dividend Rate (DPS)': round(info.get('dividendRate', 0)),
                 'Forward Annual Dividend Yield (%)': forward_dividend_yield,
             }
+            
         except Exception as e:
             st.error(f"Error saat mengambil data {symbol}: {str(e)}")
             continue
@@ -498,6 +516,7 @@ def stock_scraper_page() -> None:
                 # Pastikan modal valid
                 modal_rupiah = max(0, abs(modal_rupiah))
                 
+                # Hitung jumlah saham dan lot
                 df['Jumlah Saham'] = (modal_rupiah / df['Current Price']).fillna(0)
                 df['Jumlah Saham'] = pd.to_numeric(df['Jumlah Saham'], errors='coerce')
                 # Pastikan jumlah saham dalam kelipatan 100
@@ -513,16 +532,11 @@ def stock_scraper_page() -> None:
                 # Hitung modal
                 df['Modal'] = df['Jumlah Saham'] * df['Current Price']
                 
-                # Hitung rasio dividen terhadap modal (hanya jika modal > 0)
-                df['Dividend Yield'] = 0.0
-                mask = df['Modal'] > 0
-                df.loc[mask, 'Dividend Yield'] = (df.loc[mask, 'Dividen'] / df.loc[mask, 'Modal'] * 100).astype(float)
-                
                 # Bulatkan semua nilai numerik
                 numeric_columns = ['Current Price', 'Price/Book (PBVR)', 'Trailing P/E (PER)', 
                                  'Total Debt/Equity (mrq) (DER)', 'Return on Equity (%) (ROE)',
                                  'Diluted EPS (ttm) (EPS)', 'Forward Annual Dividend Rate (DPS)',
-                                 'Forward Annual Dividend Yield (%)', 'Dividen', 'Modal', 'Dividend Yield']
+                                 'Forward Annual Dividend Yield (%)', 'Dividen', 'Modal']
                 
                 for col in numeric_columns:
                     if col in df.columns:
@@ -541,18 +555,22 @@ def stock_scraper_page() -> None:
                     'Jumlah Saham': lambda x: format_number(x, 0),
                     'Dividen': lambda x: format_rupiah(x),
                     'Jumlah Lot': lambda x: format_number(x, 0),
-                    'Modal': lambda x: format_rupiah(x),
-                    'Dividend Yield': lambda x: format_percent(x, 2)
+                    'Modal': lambda x: format_rupiah(x)
                 }
                 
                 with st.expander("Tampilkan Data Statistik", expanded=True):
-                    df_display = df.reset_index(drop=True)
+                    # Filter hanya saham yang valid (harga > 0)
+                    df_display = df[df['Current Price'] > 0].copy()
+                    df_display = df_display.reset_index(drop=True)
                     df_display.index = df_display.index + 1
+                    
+                    # Hitung tinggi tabel berdasarkan jumlah saham valid
+                    table_height = min(400, len(df_display) * 40 + 50)
                     
                     st.dataframe(
                         format_dataframe(df_display, format_dict),
                         use_container_width=True,
-                        height=400
+                        height=table_height
                     )
 
             except Exception as e:
