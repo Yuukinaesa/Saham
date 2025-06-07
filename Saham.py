@@ -842,9 +842,9 @@ def calculate_next_price(harga_sekarang: float, persentase: float, is_ara: bool)
     Returns:
         float: Harga berikutnya yang sudah dibulatkan
     """
-    # Pastikan nilai positif
-    harga_sekarang = abs(harga_sekarang)
-    persentase = abs(persentase)
+    # Pastikan nilai harga dan persentase valid
+    harga_sekarang = max(1, abs(harga_sekarang))
+    persentase = max(0, abs(persentase))
     
     fraksi = get_fraksi_harga(harga_sekarang)
 
