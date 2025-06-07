@@ -392,7 +392,7 @@ def format_percent(value: float, decimals: int = 2) -> str:
             return "0,00%"
             
         # Pastikan nilai dalam bentuk desimal (0-1)
-        if value > 1:
+        if abs(value) > 1:
             value = value / 100
             
         # Format khusus untuk Forward Annual Dividend Yield
