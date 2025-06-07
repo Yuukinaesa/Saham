@@ -664,10 +664,15 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
                 )
                 
                 # Results section
-                st.markdown('<div class="result-box">', unsafe_allow_html=True)
-                st.markdown('<div class="section-title">📊 Hasil Perhitungan</div>', unsafe_allow_html=True)
-                st.write(f"Total Beli: {format_rupiah(total_beli)}")
-                st.write(f"Total Jual: {format_rupiah(total_jual)}")
+                st.markdown(
+                    f"""
+                    <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
+                        <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📊 Hasil Perhitungan</h4>
+                        <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Total Beli: {format_rupiah(total_beli)}<br>Total Jual: {format_rupiah(total_jual)}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
                 if profit_loss > 0:
                     st.success(f"Profit/Loss: {format_rupiah(profit_loss)}")
@@ -686,7 +691,7 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
                     st.warning(f"Total Dividen: {format_rupiah(total_dividen)}")
                     st.warning(f"Dividend Yield: {format_percent(dividend_yield, 2)}")
                 
-                st.markdown('</div>', unsafe_allow_html=True)
+
 
 def calculate_compound_interest(firstm: float, rate: float, years: float, 
                               additional_investment: float = 0) -> pd.DataFrame:
