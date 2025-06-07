@@ -675,7 +675,7 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
                 )
 
                 profit_message = (
-                    f"Profit/Loss: {format_rupiah(profit_loss)}\n"
+                    f"Profit/Loss: {format_rupiah(profit_loss)}<br>"
                     f"Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}"
                 )
 
@@ -691,7 +691,7 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
                     total_dividen = calculate_dividend(jumlah_lot, dividen_per_saham)
                     dividend_yield = calculate_dividend_yield(dividen_per_saham, harga_beli)
                     dividend_message = (
-                        f"Total Dividen: {format_rupiah(total_dividen)}\n"
+                        f"Total Dividen: {format_rupiah(total_dividen)}<br>"
                         f"Dividend Yield: {format_percent(dividend_yield, 2)}"
                     )
                     st.warning(dividend_message)
