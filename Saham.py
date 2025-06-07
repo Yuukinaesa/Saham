@@ -664,28 +664,34 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
                 )
                 
                 # Results section
-                st.markdown('<div class="result-box">', unsafe_allow_html=True)
-                st.markdown('<div class="section-title">📊 Hasil Perhitungan</div>', unsafe_allow_html=True)
-                st.write(f"Total Beli: {format_rupiah(total_beli)}")
-                st.write(f"Total Jual: {format_rupiah(total_jual)}")
-                st.write(f"Profit/Loss: {format_rupiah(profit_loss)}")
-                st.write(f"Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}")
+                st.markdown(
+                    f"""
+                    <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
+                        <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📊 Hasil Perhitungan</h4>
+                        <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Total Beli: {format_rupiah(total_beli)}<br>Total Jual: {format_rupiah(total_jual)}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+
+                if profit_loss > 0:
+                    st.success(f"Profit/Loss: {format_rupiah(profit_loss)}")
+                    st.success(f"Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}")
+                elif profit_loss < 0:
+                    st.error(f"Profit/Loss: {format_rupiah(profit_loss)}")
+                    st.error(f"Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}")
+                else:
+                    st.info(f"Profit/Loss: {format_rupiah(profit_loss)}")
+                    st.info(f"Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}")
                 
                 # Tambahkan hasil dividen jika ada
                 if include_dividend and dividen_per_saham > 0:
                     total_dividen = calculate_dividend(jumlah_lot, dividen_per_saham)
                     dividend_yield = calculate_dividend_yield(dividen_per_saham, harga_beli)
-                    st.write(f"Total Dividen: {format_rupiah(total_dividen)}")
-                    st.write(f"Dividend Yield: {format_percent(dividend_yield, 2)}")
+                    st.warning(f"Total Dividen: {format_rupiah(total_dividen)}")
+                    st.warning(f"Dividend Yield: {format_percent(dividend_yield, 2)}")
                 
-                st.markdown('</div>', unsafe_allow_html=True)
 
-                if profit_loss > 0:
-                    st.success("🎉 Profit!")
-                elif profit_loss < 0:
-                    st.error("😢 Loss!")
-                else:
-                    st.info("⚖️ Break Even!")
 
 def calculate_compound_interest(firstm: float, rate: float, years: float, 
                               additional_investment: float = 0) -> pd.DataFrame:
