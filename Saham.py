@@ -1045,8 +1045,8 @@ def warrant_calculator_page() -> None:
         fee_beli, fee_jual = PLATFORM_CONFIG.get(platform, (0, 0))
         
         # Input harga beli dan jual warrant
-        harga_beli_warrant = st.number_input('💰 Harga Beli Warrant', step=100, format="%d", value=100)
-        harga_jual_warrant = st.number_input('💵 Harga Jual Warrant', step=100, format="%d", value=150)
+        harga_beli_warrant = st.number_input('💰 Harga Beli Warrant', min_value=0, step=1, format="%d", value=0)
+        harga_jual_warrant = st.number_input('💵 Harga Jual Warrant', min_value=0, step=1, format="%d", value=0)
         jumlah_lot = st.number_input('📦 Jumlah Lot', step=0.5, format="%.1f", value=1.0)
         
         # Jika platform Custom, tampilkan input fee
@@ -1074,8 +1074,8 @@ def warrant_calculator_page() -> None:
         if st.button('Hitung Keuntungan', type='primary'):
             # Hitung total beli dan jual
             # Pastikan nilai positif dan valid
-            harga_beli_warrant = max(1, abs(harga_beli_warrant))  # Minimal Rp 1
-            harga_jual_warrant = max(1, abs(harga_jual_warrant))  # Minimal Rp 1
+            harga_beli_warrant = max(0.0, float(harga_beli_warrant))
+            harga_jual_warrant = max(0.0, float(harga_jual_warrant))
             jumlah_lot = max(0.5, abs(jumlah_lot))  # Minimal 0.5 lot
             fee_beli = min(1, abs(fee_beli))  # Maksimal 100%
             fee_jual = min(1, abs(fee_jual))  # Maksimal 100%
