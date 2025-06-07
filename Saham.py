@@ -2,22 +2,21 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 from streamlit_option_menu import option_menu
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 import re
 import locale
 import numpy as np
-from scipy.stats import norm
 
 # Set locale untuk format Rupiah
 try:
     locale.setlocale(locale.LC_ALL, 'id_ID.UTF-8')
-except:
+except Exception:
     try:
         locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-    except:
+    except Exception:
         try:
             locale.setlocale(locale.LC_ALL, 'C.UTF-8')
-        except:
+        except Exception:
             # Jika semua locale gagal, gunakan default
             pass
 
@@ -243,9 +242,6 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
                 st.warning(f"Tidak ada info untuk {symbol}")
                 continue
                 
-            # Cek kunci yang tersedia
-            available_keys = list(info.keys())
-            
             # Coba beberapa kunci untuk mendapatkan harga
             current_price = None
             price_keys = ['regularMarketPrice', 'regularMarketPreviousClose', 'currentPrice', 'previousClose']
@@ -793,7 +789,7 @@ def compound_interest_page() -> None:
                             yearly_data[['Month', 'Amount']].set_index(yearly_data.index + 1),
                             use_container_width=True
                         )
-            except Exception as e:
+            except Exception:
                 st.error("Silakan masukkan nilai investasi awal dan tingkat bunga untuk menghitung compound interest")
 
 def get_fraksi_harga(harga: float) -> float:
@@ -850,25 +846,27 @@ def calculate_next_price(harga_sekarang: float, persentase: float, is_ara: bool)
     harga_sekarang = abs(harga_sekarang)
     persentase = abs(persentase)
     
+    fraksi = get_fraksi_harga(harga_sekarang)
+
     if is_ara:
         # Hitung harga maksimum yang diizinkan
-        harga_maks = harga_sekarang * (1 + persentase/100)
-        # Cari harga terdekat yang tidak melebihi batas
+        harga_maks = harga_sekarang * (1 + persentase / 100)
         harga_baru = harga_sekarang
         while harga_baru < harga_maks:
-            harga_baru += 5  # Kelipatan 5
-        harga_baru -= 5  # Kembali ke harga sebelumnya yang masih dalam batas
+            harga_baru += fraksi
+            fraksi = get_fraksi_harga(harga_baru)
+        harga_baru -= fraksi
     else:
         # Hitung harga minimum yang diizinkan
-        harga_min = harga_sekarang * (1 - persentase/100)
-        # Cari harga terdekat yang tidak melebihi batas
+        harga_min = harga_sekarang * (1 - persentase / 100)
         harga_baru = harga_sekarang
         while harga_baru > harga_min:
-            harga_baru -= 5  # Kelipatan 5
-        harga_baru += 5  # Kembali ke harga sebelumnya yang masih dalam batas
-    
-    # Bulatkan ke kelipatan 5 terdekat
-    return round(harga_baru / 5) * 5
+            harga_baru -= fraksi
+            fraksi = get_fraksi_harga(harga_baru)
+        harga_baru += fraksi
+
+    fraksi = get_fraksi_harga(harga_baru)
+    return round(harga_baru / fraksi) * fraksi
 
 def calculate_actual_percentage(harga_awal: float, harga_baru: float) -> float:
     """Menghitung persentase aktual kenaikan/penurunan."""
