@@ -690,8 +690,11 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
                 if include_dividend and dividen_per_saham > 0:
                     total_dividen = calculate_dividend(jumlah_lot, dividen_per_saham)
                     dividend_yield = calculate_dividend_yield(dividen_per_saham, harga_beli)
-                    st.warning(f"Total Dividen: {format_rupiah(total_dividen)}")
-                    st.warning(f"Dividend Yield: {format_percent(dividend_yield, 2)}")
+                    dividend_message = (
+                        f"Total Dividen: {format_rupiah(total_dividen)}\n"
+                        f"Dividend Yield: {format_percent(dividend_yield, 2)}"
+                    )
+                    st.warning(dividend_message)
                 
 
 
