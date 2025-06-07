@@ -674,15 +674,17 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
                     unsafe_allow_html=True,
                 )
 
+                profit_message = (
+                    f"Profit/Loss: {format_rupiah(profit_loss)}\n"
+                    f"Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}"
+                )
+
                 if profit_loss > 0:
-                    st.success(f"Profit/Loss: {format_rupiah(profit_loss)}")
-                    st.success(f"Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}")
+                    st.success(profit_message)
                 elif profit_loss < 0:
-                    st.error(f"Profit/Loss: {format_rupiah(profit_loss)}")
-                    st.error(f"Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}")
+                    st.error(profit_message)
                 else:
-                    st.info(f"Profit/Loss: {format_rupiah(profit_loss)}")
-                    st.info(f"Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}")
+                    st.info(profit_message)
                 
                 # Tambahkan hasil dividen jika ada
                 if include_dividend and dividen_per_saham > 0:
