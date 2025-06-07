@@ -129,6 +129,22 @@ def apply_global_css() -> None:
             border-radius: 8px;
             border: 1px solid #e5e7eb;
         }
+
+        /* Styling untuk highlight hasil dividen */
+        .highlight-box {
+            background-color: #fef3c7;
+            padding: 12px;
+            margin-top: 12px;
+            border-radius: 8px;
+        }
+
+        /* Warna teks hijau dan merah */
+        .text-green {
+            color: #22c55e;
+        }
+        .text-red {
+            color: #ef4444;
+        }
         
         /* Styling untuk radio buttons */
         .stRadio > div {
@@ -666,17 +682,26 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
                 # Results section
                 st.markdown('<div class="result-box">', unsafe_allow_html=True)
                 st.markdown('<div class="section-title">📊 Hasil Perhitungan</div>', unsafe_allow_html=True)
-                st.write(f"Total Beli: {format_rupiah(total_beli)}")
-                st.write(f"Total Jual: {format_rupiah(total_jual)}")
-                st.write(f"Profit/Loss: {format_rupiah(profit_loss)}")
-                st.write(f"Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}")
+
+                st.markdown(f"<p class='text-green'>Total Beli: {format_rupiah(total_beli)}</p>", unsafe_allow_html=True)
+                st.markdown(f"<p class='text-red'>Total Jual: {format_rupiah(total_jual)}</p>", unsafe_allow_html=True)
+
+                profit_class = 'text-green' if profit_loss > 0 else 'text-red' if profit_loss < 0 else ''
+                st.markdown(f"<p class='{profit_class}'>Profit/Loss: {format_rupiah(profit_loss)}</p>", unsafe_allow_html=True)
+
+                percent_class = 'text-green' if profit_loss_percentage > 0 else 'text-red' if profit_loss_percentage < 0 else ''
+                st.markdown(f"<p class='{percent_class}'>Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}</p>", unsafe_allow_html=True)
                 
                 # Tambahkan hasil dividen jika ada
                 if include_dividend and dividen_per_saham > 0:
                     total_dividen = calculate_dividend(jumlah_lot, dividen_per_saham)
                     dividend_yield = calculate_dividend_yield(dividen_per_saham, harga_beli)
-                    st.write(f"Total Dividen: {format_rupiah(total_dividen)}")
-                    st.write(f"Dividend Yield: {format_percent(dividend_yield, 2)}")
+                    st.markdown(f"""
+                    <div class='highlight-box'>
+                        <p>Total Dividen: {format_rupiah(total_dividen)}</p>
+                        <p>Dividend Yield: {format_percent(dividend_yield, 2)}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
                 
                 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -842,9 +867,9 @@ def calculate_next_price(harga_sekarang: float, persentase: float, is_ara: bool)
     Returns:
         float: Harga berikutnya yang sudah dibulatkan
     """
-    # Pastikan nilai positif
-    harga_sekarang = abs(harga_sekarang)
-    persentase = abs(persentase)
+    # Pastikan nilai harga dan persentase valid
+    harga_sekarang = max(1, abs(harga_sekarang))
+    persentase = max(0, abs(persentase))
     
     fraksi = get_fraksi_harga(harga_sekarang)
 
