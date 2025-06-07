@@ -1,33 +1,35 @@
 # 📈 Saham Calculator
 
-Saham Calculator is a modern web application for calculating and analyzing stock investments, designed for the Indonesian market. Built with Streamlit, it offers a suite of tools to help investors make informed decisions with ease and accuracy.
+Saham Calculator is a professional-grade web application for stock investment analysis and calculation, tailored for the Indonesian market. Built with Streamlit, it provides a comprehensive suite of tools to help investors make data-driven decisions efficiently.
 
 ## 🚀 Key Features
 
 ### 1. Stock Scraper
-- Fetches real-time stock data from Yahoo Finance
-- Displays essential metrics: price, PBV, PER, DER, ROE, and dividend
-- Calculates the number of lots based on your available capital
+- Retrieve real-time stock data from Yahoo Finance
+- Display key financial metrics: price, PBV, PER, DER, ROE, and dividend
+- Calculate the optimal number of lots based on your available capital
 
-### 2. Stock Calculator
-- Calculates profit/loss for stock transactions
-- Supports multiple platforms: IPOT, Stockbit, BNI Bions, and custom configurations
-- Computes buy and sell fees
-- Calculates dividends and dividend yield
+### 2. Stock Transaction Calculator
+- Calculate profit/loss for stock trades
+- Support for multiple platforms: IPOT, Stockbit, BNI Bions, and custom fee settings
+- Automatic calculation of buy/sell fees
+- Dividend and dividend yield calculation
+- Customizable transaction parameters
 
 ### 3. Compound Interest Calculator
-- Calculates compound interest for investments
-- Supports additional monthly investments
-- Presents results per month and per year
+- Simulate compound interest growth for investments
+- Support for recurring monthly investments
+- Detailed results per month and per year
 
-### 4. ARA/ARB Calculator
-- Calculates ARA (Auto Reject Above) and ARB (Auto Reject Below) prices
-- Supports both main and acceleration boards
+### 4. ARA/ARB Price Calculator
+- Calculate ARA (Auto Reject Above) and ARB (Auto Reject Below) price limits
+- Support for both main and acceleration boards
+- Follows IDX price fraction and board rules
 
-### 5. Warrant Calculator
-- Calculates warrant trading profits
-- Supports various platforms
-- Computes buy and sell fees
+### 5. Warrant Profit Calculator
+- Calculate profit/loss from warrant trading
+- Support for platform-specific and custom fee structures
+- Flexible lot and price input
 
 ## 🛠️ Installation
 
