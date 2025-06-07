@@ -641,7 +641,7 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
         </div>
         """, unsafe_allow_html=True)
         
-        st.markdown('<div class="section-title">⚙️ Pengaturan Fee</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">⚙️ Pengaturan</div>', unsafe_allow_html=True)
         include_fee_beli = st.checkbox("Masukkan Fee Beli", value=True)
         include_fee_jual = st.checkbox("Masukkan Fee Jual", value=True)
         include_dividend = st.checkbox("Masukkan Dividen")
