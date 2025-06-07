@@ -1144,18 +1144,6 @@ def warrant_calculator_page() -> None:
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Tampilkan informasi tambahan
-            with st.expander("ℹ️ Informasi Perhitungan", expanded=False):
-                st.markdown("""
-                <h4 style='color: #1a1a1a; margin: 0;'>Rumus Perhitungan:</h4>
-                <ul style='margin: 8px 0 0 0; padding-left: 20px;'>
-                    <li style='margin-bottom: 8px;'><strong>Total Beli:</strong> Harga Beli × Jumlah Lot × 100</li>
-                    <li style='margin-bottom: 8px;'><strong>Total Jual:</strong> Harga Jual × Jumlah Lot × 100</li>
-                    <li style='margin-bottom: 8px;'><strong>Fee Beli:</strong> Total Beli × Persentase Fee Beli</li>
-                    <li style='margin-bottom: 8px;'><strong>Fee Jual:</strong> Total Jual × Persentase Fee Jual</li>
-                    <li style='margin-bottom: 8px;'><strong>Keuntungan:</strong> (Total Jual - Fee Jual) - (Total Beli + Fee Beli)</li>
-                </ul>
-                """, unsafe_allow_html=True)
 
 def main() -> None:
     """Fungsi utama untuk menjalankan aplikasi Streamlit."""
