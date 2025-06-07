@@ -2,22 +2,21 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 from streamlit_option_menu import option_menu
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Tuple
 import re
 import locale
 import numpy as np
-from scipy.stats import norm
 
 # Set locale untuk format Rupiah
 try:
     locale.setlocale(locale.LC_ALL, 'id_ID.UTF-8')
-except:
+except Exception:
     try:
         locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-    except:
+    except Exception:
         try:
             locale.setlocale(locale.LC_ALL, 'C.UTF-8')
-        except:
+        except Exception:
             # Jika semua locale gagal, gunakan default
             pass
 
@@ -243,9 +242,6 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
                 st.warning(f"Tidak ada info untuk {symbol}")
                 continue
                 
-            # Cek kunci yang tersedia
-            available_keys = list(info.keys())
-            
             # Coba beberapa kunci untuk mendapatkan harga
             current_price = None
             price_keys = ['regularMarketPrice', 'regularMarketPreviousClose', 'currentPrice', 'previousClose']
@@ -396,7 +392,7 @@ def format_percent(value: float, decimals: int = 2) -> str:
             return "0,00%"
             
         # Pastikan nilai dalam bentuk desimal (0-1)
-        if value > 1:
+        if abs(value) > 1:
             value = value / 100
             
         # Format khusus untuk Forward Annual Dividend Yield
@@ -793,7 +789,7 @@ def compound_interest_page() -> None:
                             yearly_data[['Month', 'Amount']].set_index(yearly_data.index + 1),
                             use_container_width=True
                         )
-            except Exception as e:
+            except Exception:
                 st.error("Silakan masukkan nilai investasi awal dan tingkat bunga untuk menghitung compound interest")
 
 def get_fraksi_harga(harga: float) -> float:
@@ -850,25 +846,27 @@ def calculate_next_price(harga_sekarang: float, persentase: float, is_ara: bool)
     harga_sekarang = abs(harga_sekarang)
     persentase = abs(persentase)
     
+    fraksi = get_fraksi_harga(harga_sekarang)
+
     if is_ara:
         # Hitung harga maksimum yang diizinkan
-        harga_maks = harga_sekarang * (1 + persentase/100)
-        # Cari harga terdekat yang tidak melebihi batas
+        harga_maks = harga_sekarang * (1 + persentase / 100)
         harga_baru = harga_sekarang
         while harga_baru < harga_maks:
-            harga_baru += 5  # Kelipatan 5
-        harga_baru -= 5  # Kembali ke harga sebelumnya yang masih dalam batas
+            harga_baru += fraksi
+            fraksi = get_fraksi_harga(harga_baru)
+        harga_baru -= fraksi
     else:
         # Hitung harga minimum yang diizinkan
-        harga_min = harga_sekarang * (1 - persentase/100)
-        # Cari harga terdekat yang tidak melebihi batas
+        harga_min = harga_sekarang * (1 - persentase / 100)
         harga_baru = harga_sekarang
         while harga_baru > harga_min:
-            harga_baru -= 5  # Kelipatan 5
-        harga_baru += 5  # Kembali ke harga sebelumnya yang masih dalam batas
-    
-    # Bulatkan ke kelipatan 5 terdekat
-    return round(harga_baru / 5) * 5
+            harga_baru -= fraksi
+            fraksi = get_fraksi_harga(harga_baru)
+        harga_baru += fraksi
+
+    fraksi = get_fraksi_harga(harga_baru)
+    return round(harga_baru / fraksi) * fraksi
 
 def calculate_actual_percentage(harga_awal: float, harga_baru: float) -> float:
     """Menghitung persentase aktual kenaikan/penurunan."""
@@ -1047,8 +1045,8 @@ def warrant_calculator_page() -> None:
         fee_beli, fee_jual = PLATFORM_CONFIG.get(platform, (0, 0))
         
         # Input harga beli dan jual warrant
-        harga_beli_warrant = st.number_input('💰 Harga Beli Warrant', step=100, format="%d", value=100)
-        harga_jual_warrant = st.number_input('💵 Harga Jual Warrant', step=100, format="%d", value=150)
+        harga_beli_warrant = st.number_input('💰 Harga Beli Warrant', min_value=0, step=1, format="%d", value=0)
+        harga_jual_warrant = st.number_input('💵 Harga Jual Warrant', min_value=0, step=1, format="%d", value=0)
         jumlah_lot = st.number_input('📦 Jumlah Lot', step=0.5, format="%.1f", value=1.0)
         
         # Jika platform Custom, tampilkan input fee
@@ -1076,8 +1074,8 @@ def warrant_calculator_page() -> None:
         if st.button('Hitung Keuntungan', type='primary'):
             # Hitung total beli dan jual
             # Pastikan nilai positif dan valid
-            harga_beli_warrant = max(1, abs(harga_beli_warrant))  # Minimal Rp 1
-            harga_jual_warrant = max(1, abs(harga_jual_warrant))  # Minimal Rp 1
+            harga_beli_warrant = max(0.0, float(harga_beli_warrant))
+            harga_jual_warrant = max(0.0, float(harga_jual_warrant))
             jumlah_lot = max(0.5, abs(jumlah_lot))  # Minimal 0.5 lot
             fee_beli = min(1, abs(fee_beli))  # Maksimal 100%
             fee_jual = min(1, abs(fee_jual))  # Maksimal 100%
@@ -1146,18 +1144,6 @@ def warrant_calculator_page() -> None:
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Tampilkan informasi tambahan
-            with st.expander("ℹ️ Informasi Perhitungan", expanded=False):
-                st.markdown("""
-                <h4 style='color: #1a1a1a; margin: 0;'>Rumus Perhitungan:</h4>
-                <ul style='margin: 8px 0 0 0; padding-left: 20px;'>
-                    <li style='margin-bottom: 8px;'><strong>Total Beli:</strong> Harga Beli × Jumlah Lot × 100</li>
-                    <li style='margin-bottom: 8px;'><strong>Total Jual:</strong> Harga Jual × Jumlah Lot × 100</li>
-                    <li style='margin-bottom: 8px;'><strong>Fee Beli:</strong> Total Beli × Persentase Fee Beli</li>
-                    <li style='margin-bottom: 8px;'><strong>Fee Jual:</strong> Total Jual × Persentase Fee Jual</li>
-                    <li style='margin-bottom: 8px;'><strong>Keuntungan:</strong> (Total Jual - Fee Jual) - (Total Beli + Fee Beli)</li>
-                </ul>
-                """, unsafe_allow_html=True)
 
 def main() -> None:
     """Fungsi utama untuk menjalankan aplikasi Streamlit."""
