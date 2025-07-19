@@ -1,37 +1,45 @@
-# 📈 Saham Calculator
+# 📈 Saham IDX - Indonesian Stock Investment Calculator
 
-A modern, professional web application for Indonesian stock investors. Saham Calculator helps you analyze, calculate, and simulate stock investments with ease, accuracy, and a beautiful interface—all powered by Streamlit.
+A modern, professional web application for Indonesian stock investors. Saham IDX helps you analyze, calculate, and simulate stock investments with ease, accuracy, and a beautiful interface—all powered by Streamlit.
 
 ---
 
 ## ✨ Features
 
-### Stock Scraper
-- Fetch real-time stock data from Yahoo Finance
-- View key metrics: Price, PBV, PER, DER, ROE, Dividend
-- Calculate optimal lot allocation based on your capital
+### 📊 Stock Scraper
+- **Real-time Data**: Fetch live stock data from Yahoo Finance
+- **Key Metrics**: Price, PBV, PER, DER, ROE, Dividend Yield, EPS
+- **Smart Allocation**: Calculate optimal lot allocation based on your capital
+- **Multiple Stocks**: Analyze multiple stocks simultaneously
+- **Professional Formatting**: Clean, readable data presentation
 
-### Stock Transaction Calculator
-- Compute profit/loss for stock trades
-- Supports multiple platforms: IPOT, Stockbit, BNI Bions, and custom fees
-- Automatic buy/sell fee calculation
-- Dividend and dividend yield calculation
-- Flexible transaction settings
+### 💰 Stock Transaction Calculator
+- **Single Stock Mode**: Calculate profit/loss for individual stock trades
+- **Multiple Stocks Mode**: Calculate portfolio-wide profit/loss for multiple stocks
+- **Platform Support**: IPOT, Stockbit, BNI Bions, and custom fee configurations
+- **Automatic Fee Calculation**: Buy/sell fees applied automatically
+- **Dividend Integration**: Include dividend calculations and yield analysis
+- **Flexible Settings**: Toggle fee inclusion and dividend calculations
 
-### Compound Interest Simulator
-- Simulate compound growth for your investments
-- Add recurring monthly investments
-- Visualize results per month and per year
+### 📈 Compound Interest Simulator
+- **Growth Simulation**: Simulate compound growth for your investments
+- **Monthly Investments**: Add recurring monthly contributions
+- **Detailed Breakdown**: View results per month and per year
+- **Visual Results**: Clean data presentation with formatted currency
 
-### ARA/ARB Price Calculator
-- Calculate ARA (Auto Reject Above) and ARB (Auto Reject Below) price limits
-- Support for main and acceleration boards
-- Follows IDX price fraction and board rules
+### 🎯 ARA/ARB Price Calculator
+- **IDX Compliance**: Calculate ARA (Auto Reject Above) and ARB (Auto Reject Below) limits
+- **Board Support**: Main board and acceleration board calculations
+- **Price Fractions**: Follows IDX price fraction rules
+- **Step-by-Step**: View multiple price levels with detailed breakdown
+- **Visual Indicators**: Color-coded results for easy interpretation
 
-### Warrant Profit Calculator
-- Calculate profit/loss from warrant trading
-- Platform-specific and custom fee support
-- Flexible lot and price input
+### 🎫 Warrant Calculator (Stockbit Integration)
+- **Platform-Specific**: Optimized for Stockbit platform with fixed fees
+- **Automatic Fee Application**: 0.15% buy fee, 0.25% sell fee
+- **Realized Gain Calculation**: Professional profit/loss analysis
+- **Simplified Interface**: Clean, focused input fields
+- **Stockbit Format**: Results match Stockbit mobile app display
 
 ---
 
@@ -42,29 +50,66 @@ A modern, professional web application for Indonesian stock investors. Saham Cal
     git clone https://github.com/Yuukinaesa/Saham.git
     cd Saham
     ```
+
 2. **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
+
 3. **Run the application:**
     ```bash
     streamlit run Saham.py
     ```
+
 4. **Open your browser:**
     - Visit [http://localhost:8501](http://localhost:8501)
 
 ---
 
 ## 🖥️ Requirements
-- Python 3.8+
-- Streamlit
-- Pandas
-- yfinance
+- **Python**: 3.8+
+- **Streamlit**: Web framework
+- **Pandas**: Data manipulation
+- **yfinance**: Stock data fetching
+- **numpy**: Numerical computations
 
 ---
 
-## 🌐 Website
-- [saham.arfan.biz.id](https://saham.arfan.biz.id)
+## 🌐 Live Website
+- **Production**: [saham.arfan.biz.id](https://saham.arfan.biz.id)
+
+---
+
+## 📋 Platform Fee Structure
+
+| Platform | Buy Fee | Sell Fee |
+|----------|---------|----------|
+| **IPOT** | 0.19% | 0.29% |
+| **Stockbit** | 0.15% | 0.25% |
+| **BNI Bions** | 0.17% | 0.27% |
+| **Custom** | Configurable | Configurable |
+
+---
+
+## 🎯 Key Features
+
+### **Professional UI/UX**
+- Modern, responsive design
+- Intuitive navigation
+- Real-time calculations
+- Professional formatting
+
+### **Accurate Calculations**
+- IDX-compliant price fractions
+- Platform-specific fee structures
+- Dividend yield calculations
+- Compound interest simulations
+
+### **Comprehensive Analysis**
+- Multiple stock portfolio analysis
+- ARA/ARB price limit calculations
+- Warrant trading profit analysis
+- Investment growth projections
 
 ---
 
@@ -80,3 +125,8 @@ Pull requests are welcome! For major changes, please open an issue first to disc
 
 ## 🙋 Support
 For questions or support, please open an issue on the repository.
+
+---
+
+## 🔗 AI Integration
+- **Instagram AI Studio**: [AI Screener Saham](https://aistudio.instagram.com/ai/704778415445100?utm_source=ai_agent)
