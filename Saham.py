@@ -342,6 +342,117 @@ def calculate_profit_loss(jumlah_lot: int, harga_beli: float, harga_jual: float,
         round(profit_loss_percentage, 2)
     )
 
+def calculate_multiple_stocks_profit_loss(stocks_data: List[Dict]) -> Dict:
+    """Menghitung profit/loss untuk multiple saham.
+    
+    Args:
+        stocks_data (List[Dict]): List berisi data saham dengan format:
+            {
+                'symbol': str,
+                'jumlah_lot': int,
+                'harga_beli': float,
+                'harga_jual': float,
+                'fee_beli': float,
+                'fee_jual': float
+            }
+        
+    Returns:
+        Dict: Dictionary berisi hasil perhitungan
+    """
+    total_investment = 0
+    total_proceeds = 0
+    total_profit_loss = 0
+    total_fee_beli = 0
+    total_fee_jual = 0
+    stocks_results = []
+    
+    for stock in stocks_data:
+        # Hitung per saham
+        total_beli, total_jual, profit_loss, profit_loss_percentage = calculate_profit_loss(
+            stock['jumlah_lot'], 
+            stock['harga_beli'], 
+            stock['harga_jual'], 
+            stock['fee_beli'], 
+            stock['fee_jual']
+        )
+        
+        # Hitung fee
+        jumlah_saham = stock['jumlah_lot'] * 100
+        fee_beli = jumlah_saham * stock['harga_beli'] * stock['fee_beli']
+        fee_jual = jumlah_saham * stock['harga_jual'] * stock['fee_jual']
+        
+        # Tambahkan ke total
+        total_investment += total_beli
+        total_proceeds += total_jual
+        total_profit_loss += profit_loss
+        total_fee_beli += fee_beli
+        total_fee_jual += fee_jual
+        
+        # Simpan hasil per saham
+        stocks_results.append({
+            'symbol': stock['symbol'],
+            'jumlah_lot': stock['jumlah_lot'],
+            'harga_beli': stock['harga_beli'],
+            'harga_jual': stock['harga_jual'],
+            'total_beli': total_beli,
+            'total_jual': total_jual,
+            'profit_loss': profit_loss,
+            'profit_loss_percentage': profit_loss_percentage,
+            'fee_beli': fee_beli,
+            'fee_jual': fee_jual
+        })
+    
+    # Hitung total profit/loss percentage
+    total_profit_loss_percentage = (total_profit_loss / total_investment) * 100 if total_investment != 0 else 0
+    
+    return {
+        'total_investment': round(total_investment, 2),
+        'total_proceeds': round(total_proceeds, 2),
+        'total_profit_loss': round(total_profit_loss, 2),
+        'total_profit_loss_percentage': round(total_profit_loss_percentage, 2),
+        'total_fee_beli': round(total_fee_beli, 2),
+        'total_fee_jual': round(total_fee_jual, 2),
+        'stocks_results': stocks_results
+    }
+
+def calculate_realized_gain(initial_investment: float, current_value: float, 
+                          dividends_received: float = 0, fees_paid: float = 0) -> Dict:
+    """Menghitung realized gain/loss.
+    
+    Args:
+        initial_investment (float): Investasi awal
+        current_value (float): Nilai saat ini
+        dividends_received (float): Total dividen yang diterima
+        fees_paid (float): Total fee yang dibayar
+        
+    Returns:
+        Dict: Dictionary berisi hasil perhitungan realized gain
+    """
+    # Hitung capital gain/loss
+    capital_gain_loss = current_value - initial_investment
+    
+    # Hitung total return (capital gain + dividen - fees)
+    total_return = capital_gain_loss + dividends_received - fees_paid
+    
+    # Hitung percentage return
+    capital_gain_percentage = (capital_gain_loss / initial_investment) * 100 if initial_investment != 0 else 0
+    total_return_percentage = (total_return / initial_investment) * 100 if initial_investment != 0 else 0
+    
+    # Hitung ROI (Return on Investment)
+    roi = (total_return / initial_investment) * 100 if initial_investment != 0 else 0
+    
+    return {
+        'initial_investment': round(initial_investment, 2),
+        'current_value': round(current_value, 2),
+        'capital_gain_loss': round(capital_gain_loss, 2),
+        'dividends_received': round(dividends_received, 2),
+        'fees_paid': round(fees_paid, 2),
+        'total_return': round(total_return, 2),
+        'capital_gain_percentage': round(capital_gain_percentage, 2),
+        'total_return_percentage': round(total_return_percentage, 2),
+        'roi': round(roi, 2)
+    }
+
 def calculate_dividend(jumlah_lot: int, dividen_per_saham: float) -> float:
     """Menghitung total dividen yang diterima.
     
@@ -352,7 +463,8 @@ def calculate_dividend(jumlah_lot: int, dividen_per_saham: float) -> float:
     Returns:
         float: Total dividen
     """
-    return jumlah_lot * dividen_per_saham * 100 if dividen_per_saham != 0 else 0
+    jumlah_saham = jumlah_lot * 100
+    return jumlah_saham * dividen_per_saham if dividen_per_saham != 0 else 0
 
 def calculate_dividend_yield(dividen_per_saham: float, harga_beli: float) -> float:
     """Menghitung dividend yield.
@@ -464,7 +576,7 @@ def format_ratio(value: float) -> str:
 
 def stock_scraper_page() -> None:
     """Halaman untuk scraper saham."""
-    st.info('Catatan: Data berasal dari Yahoo Finance. Pembelian disesuaikan dengan modal untuk jumlah lot yang sesuai.')
+    st.info('**Catatan: Data berasal dari Yahoo Finance. Pembelian disesuaikan dengan modal untuk jumlah lot yang sesuai.**')
     
     # Input section
     col1, col2 = st.columns(2, gap="small")
@@ -619,6 +731,20 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
         </p>
         """, unsafe_allow_html=True)
     
+    # Pilih mode kalkulator
+    calculator_mode = st.radio(
+        "Pilih Mode Kalkulator",
+        ["Saham", "Multiple Saham"],
+        horizontal=True
+    )
+    
+    if calculator_mode == "Saham":
+        single_stock_calculator(title, fee_beli, fee_jual)
+    else:
+        multiple_stocks_calculator(title, fee_beli, fee_jual)
+
+def single_stock_calculator(title: str, fee_beli: float, fee_jual: float) -> None:
+    """Kalkulator untuk single stock."""
     # Input section dalam grid
     col1, col2 = st.columns(2, gap="small")
     
@@ -653,7 +779,7 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
 
         # Button section
         st.markdown('<div style="text-align: center; margin: 16px 0;">', unsafe_allow_html=True)
-        if st.button("Hitung", key="calculate"):
+        if st.button("Hitung", key="calculate_single"):
             with st.spinner('Menghitung...'):
                 # Gunakan fee yang sesuai dengan checkbox
                 fee_beli_final = fee_beli if include_fee_beli else 0
@@ -664,7 +790,6 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
                 )
                 
                 # Results section
-                # Gabungkan semua hasil ke dalam satu box dengan desain
                 st.markdown(
                     f"""
                     <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 16px 12px 16px 20px; border-radius: 8px; border-left: 4px solid #2563eb;'>
@@ -682,12 +807,143 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
                     unsafe_allow_html=True,
                 )
 
-                # Tambahkan hasil dividen jika ada, tampilkan sebagai text biasa (vertikal)
+                # Tambahkan hasil dividen jika ada
                 if include_dividend and dividen_per_saham > 0:
                     total_dividen = calculate_dividend(jumlah_lot, dividen_per_saham)
                     dividend_yield = calculate_dividend_yield(dividen_per_saham, harga_beli)
                     st.write(f"Total Dividen: {format_rupiah(total_dividen)}")
                     st.write(f"Dividend Yield: {format_percent(dividend_yield, 2)}")
+
+def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> None:
+    """Kalkulator untuk multiple saham."""
+    st.markdown('<div class="section-title">📊 Kalkulator Multiple Saham</div>', unsafe_allow_html=True)
+    
+    # Input jumlah saham
+    num_stocks = st.number_input("Jumlah Saham yang Dihitung:", min_value=1, max_value=10, value=2, step=1)
+    
+    if title == "Custom":
+        st.markdown('<div class="section-title">💰 Masukkan Fee Kustom</div>', unsafe_allow_html=True)
+        fee_beli = st.number_input("Fee Beli (persentase):", step=0.1, format="%.2f") / 100
+        fee_jual = st.number_input("Fee Jual (persentase):", step=0.1, format="%.2f") / 100
+    
+    # Input untuk setiap saham
+    stocks_data = []
+    
+    for i in range(num_stocks):
+        st.markdown(f"### Saham {i+1}")
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            symbol = st.text_input(f"Simbol Saham {i+1}", value=f"STOCK{i+1}", key=f"symbol_{i}")
+            jumlah_lot = st.number_input(f"Jumlah Lot {i+1}", step=1, format="%d", value=10, key=f"lot_{i}")
+        
+        with col2:
+            harga_beli = st.number_input(f"Harga Beli {i+1}", step=1000.0, format="%0.0f", value=1000.0, key=f"beli_{i}")
+            harga_jual = st.number_input(f"Harga Jual {i+1}", step=1000.0, format="%0.0f", value=2000.0, key=f"jual_{i}")
+        
+        with col3:
+            include_fee_beli = st.checkbox(f"Fee Beli {i+1}", value=True, key=f"fee_beli_{i}")
+            include_fee_jual = st.checkbox(f"Fee Jual {i+1}", value=True, key=f"fee_jual_{i}")
+        
+        stocks_data.append({
+            'symbol': symbol,
+            'jumlah_lot': jumlah_lot,
+            'harga_beli': harga_beli,
+            'harga_jual': harga_jual,
+            'fee_beli': fee_beli if include_fee_beli else 0,
+            'fee_jual': fee_jual if include_fee_jual else 0
+        })
+    
+    # Tampilkan fee platform
+    st.markdown(f"""
+    <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
+        <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>💸 Fee Platform</h4>
+        <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Fee Beli: {fee_beli*100:.2f}% | Fee Jual: {fee_jual*100:.2f}%</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("Hitung Multiple Saham", key="calculate_multiple"):
+        with st.spinner('Menghitung multiple saham...'):
+            result = calculate_multiple_stocks_profit_loss(stocks_data)
+            
+            # Tampilkan hasil total
+            st.markdown(
+                f"""
+                <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 16px 12px 16px 20px; border-radius: 8px; border-left: 4px solid #2563eb;'>
+                    <h4 style='color: #1a1a1a; margin: 0 0 8px 0; font-size: 16px;'>📊 Hasil Total Portfolio</h4>
+                    <p style='margin: 0; color: #6b7280; font-size: 15px;'>
+                        Total Investasi: {format_rupiah(result['total_investment'])}<br>
+                        Total Proceeds: {format_rupiah(result['total_proceeds'])}<br>
+                        Total Fee Beli: {format_rupiah(result['total_fee_beli'])}<br>
+                        Total Fee Jual: {format_rupiah(result['total_fee_jual'])}<br>
+                        <span style='color:{"#4CA16B" if result['total_profit_loss'] > 0 else ("#AD3E3E" if result['total_profit_loss'] < 0 else "#423D3D")}; font-weight:bold;'>
+                            Total Profit/Loss: {format_rupiah(result['total_profit_loss'])}<br>
+                            Total Profit/Loss Percentage: {format_percent(result['total_profit_loss_percentage'], 2)}
+                        </span>
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            
+            # Tampilkan detail per saham
+            st.markdown("### Detail Per Saham")
+            detail_data = []
+            for stock in result['stocks_results']:
+                detail_data.append({
+                    'Symbol': stock['symbol'],
+                    'Lot': stock['jumlah_lot'],
+                    'Harga Beli': format_rupiah(stock['harga_beli']),
+                    'Harga Jual': format_rupiah(stock['harga_jual']),
+                    'Total Beli': format_rupiah(stock['total_beli']),
+                    'Total Jual': format_rupiah(stock['total_jual']),
+                    'Profit/Loss': format_rupiah(stock['profit_loss']),
+                    'Profit/Loss %': format_percent(stock['profit_loss_percentage'], 2)
+                })
+            
+            df_detail = pd.DataFrame(detail_data)
+            st.dataframe(df_detail, use_container_width=True, hide_index=True)
+
+def realized_gain_calculator() -> None:
+    """Kalkulator untuk realized gain."""
+    st.markdown('<div class="section-title">💰 Kalkulator Realized Gain</div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2, gap="small")
+    
+    with col1:
+        st.markdown('<div class="section-title">📈 Input Investasi</div>', unsafe_allow_html=True)
+        initial_investment = st.number_input("Investasi Awal (Rp):", step=1000000, format="%d", value=10000000)
+        current_value = st.number_input("Nilai Saat Ini (Rp):", step=1000000, format="%d", value=12000000)
+    
+    with col2:
+        st.markdown('<div class="section-title">💸 Input Tambahan</div>', unsafe_allow_html=True)
+        dividends_received = st.number_input("Total Dividen Diterima (Rp):", step=100000, format="%d", value=500000)
+        fees_paid = st.number_input("Total Fee Dibayar (Rp):", step=10000, format="%d", value=100000)
+    
+    if st.button("Hitung Realized Gain", key="calculate_realized"):
+        with st.spinner('Menghitung realized gain...'):
+            result = calculate_realized_gain(initial_investment, current_value, dividends_received, fees_paid)
+            
+            # Tampilkan hasil
+            st.markdown(
+                f"""
+                <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 16px 12px 16px 20px; border-radius: 8px; border-left: 4px solid #2563eb;'>
+                    <h4 style='color: #1a1a1a; margin: 0 0 8px 0; font-size: 16px;'>📊 Hasil Realized Gain</h4>
+                    <p style='margin: 0; color: #6b7280; font-size: 15px;'>
+                        Investasi Awal: {format_rupiah(result['initial_investment'])}<br>
+                        Nilai Saat Ini: {format_rupiah(result['current_value'])}<br>
+                        Dividen Diterima: {format_rupiah(result['dividends_received'])}<br>
+                        Fee Dibayar: {format_rupiah(result['fees_paid'])}<br>
+                        <span style='color:{"#4CA16B" if result['capital_gain_loss'] > 0 else ("#AD3E3E" if result['capital_gain_loss'] < 0 else "#423D3D")}; font-weight:bold;'>
+                            Capital Gain/Loss: {format_rupiah(result['capital_gain_loss'])} ({format_percent(result['capital_gain_percentage'], 2)})<br>
+                            Total Return: {format_rupiah(result['total_return'])} ({format_percent(result['total_return_percentage'], 2)})<br>
+                            ROI: {format_percent(result['roi'], 2)}
+                        </span>
+                    </p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
                 
 
 def calculate_compound_interest(firstm: float, rate: float, years: float, 
@@ -708,10 +964,10 @@ def calculate_compound_interest(firstm: float, rate: float, years: float,
     amount = firstm
     
     for month in range(1, total_months + 1):
-        # Hitung bunga bulanan
-        amount *= (1 + rate / 100 / 12)  
-        # Tambahkan investasi bulanan
+        # Tambahkan investasi bulanan terlebih dahulu
         amount += additional_investment  
+        # Hitung bunga bulanan pada total amount
+        amount *= (1 + rate / 100 / 12)  
         # Bulatkan ke 2 desimal
         amount = round(amount, 2)
         
@@ -816,7 +1072,7 @@ def get_ara_arb_percentage(harga: float, is_acceleration: bool = False) -> float
         else:
             return 10.0  # 10% dari harga acuan
     else:
-        # Pola persentase berdasarkan harga
+        # Pola persentase berdasarkan harga sesuai IDX
         if harga >= 5000:
             return 20.0
         elif 2000 <= harga < 5000:
@@ -833,6 +1089,255 @@ def get_ara_arb_percentage(harga: float, is_acceleration: bool = False) -> float
             return 35.0
         else:
             return 0.0  # Untuk harga di bawah Rp50
+
+def calculate_ara_arb_sequence(harga_dasar: float, is_acceleration: bool = False, max_steps: int = 10) -> List[Dict]:
+    """Menghitung urutan harga ARA dan ARB sesuai standar IDX.
+    
+    Args:
+        harga_dasar (float): Harga dasar/penutupan
+        is_acceleration (bool): True untuk papan akselerasi
+        max_steps (int): Jumlah maksimal langkah yang dihitung
+        
+    Returns:
+        List[Dict]: List berisi urutan harga ARA dan ARB
+    """
+    sequence = []
+    
+    # Tambahkan harga dasar sebagai referensi
+    sequence.append({
+        'harga': harga_dasar,
+        'perubahan': 0,
+        'persentase_perubahan': 0.0,
+        'persentase_kumulatif': 0.0,
+        'tipe': 'dasar'
+    })
+    
+    # Hitung ARA (Auto Reject Above)
+    harga_ara_sekarang = harga_dasar
+    for step in range(max_steps):
+        if is_acceleration:
+            if 1 <= harga_ara_sekarang <= 10:
+                # Untuk papan akselerasi, harga Rp1-Rp10: +Rp1
+                harga_ara_baru = harga_ara_sekarang + 1
+            else:
+                # Untuk papan akselerasi, harga > Rp10: +10%
+                harga_ara_baru = harga_ara_sekarang * 1.10
+        else:
+            # Untuk papan utama/pengembangan - gunakan persentase yang tepat
+            if harga_ara_sekarang >= 5000:
+                # Harga ≥ Rp 5.000: +20%
+                persentase = 20.0
+            elif 2000 <= harga_ara_sekarang < 5000:
+                # Harga Rp 1.000 - Rp 5.000: +25%
+                persentase = 25.0
+            elif 1000 <= harga_ara_sekarang < 2000:
+                # Harga Rp 1.000 - Rp 2.000: +25%
+                persentase = 25.0
+            elif 500 <= harga_ara_sekarang < 1000:
+                # Harga Rp 500 - Rp 1.000: +25%
+                persentase = 25.0
+            elif 200 <= harga_ara_sekarang < 500:
+                # Harga Rp 200 - Rp 500: +25%
+                persentase = 25.0
+            elif 100 <= harga_ara_sekarang < 200:
+                # Harga Rp 100 - Rp 200: +35%
+                persentase = 35.0
+            elif 50 <= harga_ara_sekarang < 100:
+                # Harga Rp 50 - Rp 100: +35%
+                persentase = 35.0
+            else:
+                # Harga < Rp 50: tidak ada ARA
+                break
+            
+            # Hitung harga baru dengan persentase
+            harga_ara_baru = harga_ara_sekarang * (1 + persentase / 100)
+        
+        # Bulatkan sesuai fraksi harga dengan metode yang benar
+        fraksi = get_fraksi_harga(harga_ara_baru)
+        # Untuk ARA, gunakan floor division untuk mendapatkan harga yang tidak melebihi batas
+        harga_ara_baru = int(harga_ara_baru / fraksi) * fraksi
+        
+        # Hitung perubahan dan persentase
+        perubahan = harga_ara_baru - harga_ara_sekarang
+        persentase_perubahan = (perubahan / harga_ara_sekarang) * 100 if harga_ara_sekarang > 0 else 0
+        persentase_kumulatif = ((harga_ara_baru - harga_dasar) / harga_dasar) * 100 if harga_dasar > 0 else 0
+        
+        sequence.append({
+            'harga': harga_ara_baru,
+            'perubahan': perubahan,
+            'persentase_perubahan': persentase_perubahan,
+            'persentase_kumulatif': persentase_kumulatif,
+            'tipe': 'ara'
+        })
+        
+        harga_ara_sekarang = harga_ara_baru
+    
+    # Hitung ARB (Auto Reject Below)
+    harga_arb_sekarang = harga_dasar
+    for step in range(max_steps):
+        if is_acceleration:
+            if 1 <= harga_arb_sekarang <= 10:
+                # Untuk papan akselerasi, harga Rp1-Rp10: -Rp1
+                harga_arb_baru = harga_arb_sekarang - 1
+            else:
+                # Untuk papan akselerasi, harga > Rp10: -10%
+                harga_arb_baru = harga_arb_sekarang * 0.90
+        else:
+            # Untuk papan utama/pengembangan - gunakan persentase yang tepat
+            if harga_arb_sekarang >= 5000:
+                # Harga ≥ Rp 5.000: -20%
+                persentase = 20.0
+            elif 2000 <= harga_arb_sekarang < 5000:
+                # Harga Rp 1.000 - Rp 5.000: -25%
+                persentase = 25.0
+            elif 1000 <= harga_arb_sekarang < 2000:
+                # Harga Rp 1.000 - Rp 2.000: -25%
+                persentase = 25.0
+            elif 500 <= harga_arb_sekarang < 1000:
+                # Harga Rp 500 - Rp 1.000: -25%
+                persentase = 25.0
+            elif 200 <= harga_arb_sekarang < 500:
+                # Harga Rp 200 - Rp 500: -25%
+                persentase = 25.0
+            elif 100 <= harga_arb_sekarang < 200:
+                # Harga Rp 100 - Rp 200: -35%
+                persentase = 35.0
+            elif 50 <= harga_arb_sekarang < 100:
+                # Harga Rp 50 - Rp 100: -35%
+                persentase = 35.0
+            else:
+                # Harga < Rp 50: tidak ada ARB
+                break
+            
+            # Hitung harga baru dengan persentase
+            harga_arb_baru = harga_arb_sekarang * (1 - persentase / 100)
+        
+        # Pastikan harga tidak di bawah minimum
+        harga_arb_baru = max(1, harga_arb_baru)
+        
+        # Bulatkan sesuai fraksi harga dengan metode yang benar
+        fraksi = get_fraksi_harga(harga_arb_baru)
+        # Untuk ARB, gunakan floor division untuk mendapatkan harga yang tidak melebihi batas
+        harga_arb_baru = int(harga_arb_baru / fraksi) * fraksi
+        
+        # Hitung perubahan dan persentase
+        perubahan = harga_arb_baru - harga_arb_sekarang
+        persentase_perubahan = (perubahan / harga_arb_sekarang) * 100 if harga_arb_sekarang > 0 else 0
+        persentase_kumulatif = ((harga_arb_baru - harga_dasar) / harga_dasar) * 100 if harga_dasar > 0 else 0
+        
+        sequence.append({
+            'harga': harga_arb_baru,
+            'perubahan': perubahan,
+            'persentase_perubahan': persentase_perubahan,
+            'persentase_kumulatif': persentase_kumulatif,
+            'tipe': 'arb'
+        })
+        
+        harga_arb_sekarang = harga_arb_baru
+    
+    # Urutkan berdasarkan harga (dari tertinggi ke terendah)
+    sequence.sort(key=lambda x: x['harga'], reverse=True)
+    
+    return sequence
+
+def calculate_ara_price(harga_dasar: float, is_acceleration: bool = False) -> float:
+    """Menghitung harga ARA (Auto Reject Above) sesuai standar IDX.
+    
+    Args:
+        harga_dasar (float): Harga dasar/penutupan
+        is_acceleration (bool): True untuk papan akselerasi
+        
+    Returns:
+        float: Harga ARA yang sudah dibulatkan sesuai fraksi
+    """
+    if is_acceleration:
+        if 1 <= harga_dasar <= 10:
+            # Untuk papan akselerasi, harga Rp1-Rp10: +Rp1
+            harga_ara = harga_dasar + 1
+        else:
+            # Untuk papan akselerasi, harga > Rp10: +10%
+            harga_ara = harga_dasar * 1.10
+    else:
+        # Untuk papan utama/pengembangan
+        if harga_dasar >= 5000:
+            # Harga ≥ Rp 5.000: +20%
+            harga_ara = harga_dasar * 1.20
+        elif 2000 <= harga_dasar < 5000:
+            # Harga Rp 1.000 - Rp 5.000: +25%
+            harga_ara = harga_dasar * 1.25
+        elif 1000 <= harga_dasar < 2000:
+            # Harga Rp 1.000 - Rp 2.000: +25%
+            harga_ara = harga_dasar * 1.25
+        elif 500 <= harga_dasar < 1000:
+            # Harga Rp 500 - Rp 1.000: +25%
+            harga_ara = harga_dasar * 1.25
+        elif 200 <= harga_dasar < 500:
+            # Harga Rp 200 - Rp 500: +25%
+            harga_ara = harga_dasar * 1.25
+        elif 100 <= harga_dasar < 200:
+            # Harga Rp 100 - Rp 200: +35%
+            harga_ara = harga_dasar * 1.35
+        elif 50 <= harga_dasar < 100:
+            # Harga Rp 50 - Rp 100: +35%
+            harga_ara = harga_dasar * 1.35
+        else:
+            # Harga < Rp 50: tidak ada ARA
+            return harga_dasar
+    
+    # Bulatkan sesuai fraksi harga
+    fraksi = get_fraksi_harga(harga_ara)
+    return int(harga_ara / fraksi) * fraksi
+
+def calculate_arb_price(harga_dasar: float, is_acceleration: bool = False) -> float:
+    """Menghitung harga ARB (Auto Reject Below) sesuai standar IDX.
+    
+    Args:
+        harga_dasar (float): Harga dasar/penutupan
+        is_acceleration (bool): True untuk papan akselerasi
+        
+    Returns:
+        float: Harga ARB yang sudah dibulatkan sesuai fraksi
+    """
+    if is_acceleration:
+        if 1 <= harga_dasar <= 10:
+            # Untuk papan akselerasi, harga Rp1-Rp10: -Rp1
+            harga_arb = harga_dasar - 1
+        else:
+            # Untuk papan akselerasi, harga > Rp10: -10%
+            harga_arb = harga_dasar * 0.90
+    else:
+        # Untuk papan utama/pengembangan
+        if harga_dasar >= 5000:
+            # Harga ≥ Rp 5.000: -20%
+            harga_arb = harga_dasar * 0.80
+        elif 2000 <= harga_dasar < 5000:
+            # Harga Rp 1.000 - Rp 5.000: -25%
+            harga_arb = harga_dasar * 0.75
+        elif 1000 <= harga_dasar < 2000:
+            # Harga Rp 1.000 - Rp 2.000: -25%
+            harga_arb = harga_dasar * 0.75
+        elif 500 <= harga_dasar < 1000:
+            # Harga Rp 500 - Rp 1.000: -25%
+            harga_arb = harga_dasar * 0.75
+        elif 200 <= harga_dasar < 500:
+            # Harga Rp 200 - Rp 500: -25%
+            harga_arb = harga_dasar * 0.75
+        elif 100 <= harga_dasar < 200:
+            # Harga Rp 100 - Rp 200: -35%
+            harga_arb = harga_dasar * 0.65
+        elif 50 <= harga_dasar < 100:
+            # Harga Rp 50 - Rp 100: -35%
+            harga_arb = harga_dasar * 0.65
+        else:
+            # Harga < Rp 50: tidak ada ARB
+            return harga_dasar
+    
+    # Pastikan harga tidak di bawah minimum
+    harga_arb = max(1, harga_arb)
+    
+    # Bulatkan sesuai fraksi harga
+    fraksi = get_fraksi_harga(harga_arb)
+    return int(harga_arb / fraksi) * fraksi
 
 def calculate_next_price(harga_sekarang: float, persentase: float, is_ara: bool) -> float:
     """Menghitung harga berikutnya dengan persentase yang fleksibel.
@@ -907,195 +1412,166 @@ def ara_arb_calculator_page() -> None:
             else:
                 st.markdown("""
                 <h4 style='color: #1a1a1a; margin: 0;'>ARA/ARB Papan Utama/Pengembangan</h4>
-                <p style='margin: 0;'>• Harga ≥ Rp 5.000: ±20%</p>
-                <p style='margin: 0;'>• Harga Rp 1.000 - Rp 5.000: ±25%</p>
-                <p style='margin: 0;'>• Harga Rp 100 - Rp 1.000: ±25%</p>
-                <p style='margin: 0;'>• Harga Rp 50 - Rp 100: ±35%</p>
+                <p style='margin: 0;'>• Harga ≥ Rp 5.000: +20% / -20%</p>
+                <p style='margin: 0;'>• Harga Rp 1.000 - Rp 5.000: +25% / -25%</p>
+                <p style='margin: 0;'>• Harga Rp 100 - Rp 1.000: +25% / -25%</p>
+                <p style='margin: 0;'>• Harga Rp 50 - Rp 100: +35% / -35%</p>
                 <p style='margin: 0 0 8px 0;'>• Minimum harga: Rp 1</p>
                 """, unsafe_allow_html=True)
         
         min_value = 1
-        harga_penutupan = st.number_input('💰 Harga Penutupan', step=100, format="%d", min_value=min_value, value=150)
+        harga_penutupan = st.number_input('💰 Harga Penutupan', step=100, format="%d", min_value=min_value, value=975)
         
-        jumlah_hari = st.number_input('📅 Jumlah Hari', min_value=1, max_value=30, value=7, step=1)
+        max_steps = st.number_input('📊 Jumlah Langkah', min_value=1, max_value=20, value=6, step=1)
         
         if st.button('Hitung ARA ARB', type='primary'):
             if harga_penutupan >= min_value:
                 st.markdown("""
                 <div style='margin-bottom: 16px;'>
-                    <h3 style='color: #1a1a1a; margin-bottom: 5px; font-size: 16px;'>📊 Hasil Perhitungan</h3>
+                    <h3 style='color: #1a1a1a; margin-bottom: 5px; font-size: 16px;'>📊 Hasil Perhitungan ARA/ARB</h3>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # Tampilkan harga penutupan
-                st.markdown(f"""
-                <div style='margin-bottom: 8px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
-                    <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>💰 Harga Penutupan: {format_rupiah(harga_penutupan)}</h4>
-                </div>
-                """, unsafe_allow_html=True)
+                # Hitung urutan ARA/ARB
+                sequence = calculate_ara_arb_sequence(harga_penutupan, is_acceleration, max_steps)
                 
-                ara_data = []
-                harga_ara_sekarang = harga_penutupan
-                for hari in range(1, jumlah_hari + 1):
-                    persentase_ara = get_ara_arb_percentage(harga_ara_sekarang, is_acceleration)
-                    if is_acceleration and harga_ara_sekarang <= 10:
-                        harga_ara_baru = harga_ara_sekarang + persentase_ara
+                # Buat DataFrame untuk ditampilkan
+                display_data = []
+                for i, item in enumerate(sequence):
+                    # Tentukan warna berdasarkan tipe
+                    if item['tipe'] == 'ara':
+                        warna = '#22c55e'  # Hijau untuk ARA
+                        arrow = '↗️'
+                    elif item['tipe'] == 'arb':
+                        warna = '#ef4444'  # Merah untuk ARB
+                        arrow = '↘️'
                     else:
-                        harga_ara_baru = calculate_next_price(harga_ara_sekarang, persentase_ara, True)
+                        warna = '#6b7280'  # Abu-abu untuk harga dasar
+                        arrow = ''
                     
-                    # Hitung persentase aktual
-                    persentase_aktual = calculate_actual_percentage(harga_ara_sekarang, harga_ara_baru)
-                    
-                    ara_data.append({
-                        'Hari': f'Hari {hari}',
-                        'Harga ARA': f'Rp {harga_ara_baru:,.0f}',
-                        'Kenaikan': f'{persentase_aktual:.2f}%',
-                        'Harga Dasar': f'Rp {harga_ara_sekarang:,.0f}'
-                    })
-                    
-                    harga_ara_sekarang = harga_ara_baru
-                
-                arb_data = []
-                harga_arb_sekarang = harga_penutupan
-                for hari in range(1, jumlah_hari + 1):
-                    persentase_arb = get_ara_arb_percentage(harga_arb_sekarang, is_acceleration)
-                    if is_acceleration and harga_arb_sekarang <= 10:
-                        harga_arb_baru = harga_arb_sekarang - persentase_arb
+                    # Format perubahan
+                    if item['perubahan'] > 0:
+                        perubahan_str = f"+{item['perubahan']:,.0f}"
+                    elif item['perubahan'] < 0:
+                        perubahan_str = f"{item['perubahan']:,.0f}"
                     else:
-                        harga_arb_baru = calculate_next_price(harga_arb_sekarang, persentase_arb, False)
+                        perubahan_str = "0"
                     
-                    # Hitung persentase aktual
-                    persentase_aktual = calculate_actual_percentage(harga_arb_sekarang, harga_arb_baru)
+                    # Format persentase perubahan
+                    if item['persentase_perubahan'] > 0:
+                        persentase_perubahan_str = f"(+{item['persentase_perubahan']:.2f}%)"
+                    elif item['persentase_perubahan'] < 0:
+                        persentase_perubahan_str = f"({item['persentase_perubahan']:.2f}%)"
+                    else:
+                        persentase_perubahan_str = "(0.00%)"
                     
-                    arb_data.append({
-                        'Hari': f'Hari {hari}',
-                        'Harga ARB': f'Rp {harga_arb_baru:,.0f}',
-                        'Penurunan': f'{persentase_aktual:.2f}%',
-                        'Harga Dasar': f'Rp {harga_arb_sekarang:,.0f}'
+                    # Format persentase kumulatif
+                    if item['persentase_kumulatif'] > 0:
+                        persentase_kumulatif_str = f"{item['persentase_kumulatif']:.2f}%"
+                    elif item['persentase_kumulatif'] < 0:
+                        persentase_kumulatif_str = f"{item['persentase_kumulatif']:.2f}%"
+                    else:
+                        persentase_kumulatif_str = "0.00%"
+                    
+                    display_data.append({
+                        'Harga': f"Rp {item['harga']:,.0f}",
+                        'Perubahan': perubahan_str,
+                        'Persentase': persentase_perubahan_str,
+                        'Kumulatif': f"{arrow} {persentase_kumulatif_str}",
+                        'Warna': warna
                     })
+                
+                # Tampilkan hasil dalam format yang mirip dengan gambar
+                st.markdown("""
+                <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 16px; border-radius: 8px;'>
+                    <h4 style='color: #1a1a1a; margin: 0 0 12px 0; font-size: 16px;'>📈 Urutan Harga ARA/ARB</h4>
+                """, unsafe_allow_html=True)
+                
+                for i, data in enumerate(display_data):
+                    # Tentukan background color berdasarkan tipe
+                    if '↗️' in data['Kumulatif']:
+                        bg_color = '#dcfce7'  # Light green background
+                        border_color = '#22c55e'
+                    elif '↘️' in data['Kumulatif']:
+                        bg_color = '#fef2f2'  # Light red background
+                        border_color = '#ef4444'
+                    else:
+                        bg_color = '#f9fafb'  # Light gray background
+                        border_color = '#6b7280'
                     
-                    harga_arb_sekarang = harga_arb_baru
+                    st.markdown(f"""
+                    <div style='margin-bottom: 8px; background-color: {bg_color}; padding: 12px; border-radius: 6px; border-left: 3px solid {border_color};'>
+                        <div style='display: flex; justify-content: space-between; align-items: center;'>
+                            <div style='flex: 1;'>
+                                <div style='font-weight: bold; font-size: 16px; color: {data["Warna"]};'>{data['Harga']}</div>
+                                <div style='font-size: 14px; color: #6b7280;'>{data['Perubahan']} {data['Persentase']}</div>
+                            </div>
+                            <div style='font-size: 14px; color: {data["Warna"]}; font-weight: bold;'>{data['Kumulatif']}</div>
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
                 
+                st.markdown("</div>", unsafe_allow_html=True)
+                
+                # Tampilkan penjelasan
                 st.markdown("""
-                <div style='margin-bottom: 8px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #22c55e;'>
-                    <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📈 Harga ARA (Auto Reject Above)</h4>
+                <div style='margin-top: 16px; background-color: #f8f9fa; padding: 12px; border-radius: 6px;'>
+                    <h5 style='color: #1a1a1a; margin: 0 0 8px 0;'>📋 Penjelasan:</h5>
+                    <ul style='margin: 0; padding-left: 20px; color: #6b7280; font-size: 14px;'>
+                        <li><strong>Harga:</strong> Harga saham dalam Rupiah</li>
+                        <li><strong>Perubahan:</strong> Selisih harga dari langkah sebelumnya</li>
+                        <li><strong>Persentase:</strong> Persentase perubahan dari langkah sebelumnya</li>
+                        <li><strong>Kumulatif:</strong> Total persentase perubahan dari harga dasar</li>
+                        <li><span style='color: #22c55e;'>🟢 Hijau:</span> Harga ARA (Auto Reject Above)</li>
+                        <li><span style='color: #6b7280;'>⚪ Abu-abu:</span> Harga Dasar</li>
+                        <li><span style='color: #ef4444;'>🔴 Merah:</span> Harga ARB (Auto Reject Below)</li>
+                    </ul>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                df_ara = pd.DataFrame(ara_data)
-                st.dataframe(
-                    df_ara,
-                    column_config={
-                        "Hari": st.column_config.TextColumn("Hari", width="small"),
-                        "Harga ARA": st.column_config.TextColumn("Harga ARA", width="medium"),
-                        "Kenaikan": st.column_config.TextColumn("Kenaikan", width="small"),
-                        "Harga Dasar": st.column_config.TextColumn("Harga Dasar", width="medium")
-                    },
-                    hide_index=True,
-                    use_container_width=True
-                )
-                
-                st.markdown("""
-                <div style='margin-top: 8px; margin-bottom: 8px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #ef4444;'>
-                    <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📉 Harga ARB (Auto Reject Below)</h4>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                df_arb = pd.DataFrame(arb_data)
-                st.dataframe(
-                    df_arb,
-                    column_config={
-                        "Hari": st.column_config.TextColumn("Hari", width="small"),
-                        "Harga ARB": st.column_config.TextColumn("Harga ARB", width="medium"),
-                        "Penurunan": st.column_config.TextColumn("Penurunan", width="small"),
-                        "Harga Dasar": st.column_config.TextColumn("Harga Dasar", width="medium")
-                    },
-                    hide_index=True,
-                    use_container_width=True
-                )
             else:
                 st.error(f"Harga saham harus minimal Rp {min_value}")
 
 def warrant_calculator_page() -> None:
     """Halaman untuk menghitung keuntungan jual warrant."""
     
+    # Notification bahwa menggunakan Stockbit
+    st.info("📱 **Kalkulator Warrant menggunakan platform Stockbit**")
+    
+    # Set fee Stockbit (fixed)
+    fee_beli, fee_jual = PLATFORM_CONFIG.get("Stockbit", (0.0015, 0.0025))
+    
     col1, col2 = st.columns(2, gap="small")
     
     with col1:
-        # Pilih platform
-        st.markdown("""
-        <div style='margin-bottom: 16px;'>
-            <h3 style='color: #1a1a1a; margin-bottom: 12px;'>Pilih Platform</h3>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        platform = option_menu(
-            None,
-            ["IPOT", "Stockbit", "BNI Bions", "Custom"],
-            icons=["calculator", "calculator", "calculator", "calculator"],
-            menu_icon="calculator",
-            default_index=0,
-            orientation="horizontal",
-            styles={
-                "container": {"padding": "0!important", "background-color": "transparent"},
-                "icon": {"color": "#2563eb", "font-size": "14px"}, 
-                "nav-link": {"font-size": "14px", "text-align": "left", "margin":"0px", "--hover-color": "#e5e7eb"},
-                "nav-link-selected": {"background-color": "#2563eb"},
-            }
-        )
-        
-        # Ambil fee dari platform
-        fee_beli, fee_jual = PLATFORM_CONFIG.get(platform, (0, 0))
-        
-        # Input harga beli dan jual warrant
-        harga_beli_warrant = st.number_input('💰 Harga Beli Warrant', min_value=0, step=1, format="%d", value=0)
-        harga_jual_warrant = st.number_input('💵 Harga Jual Warrant', min_value=0, step=1, format="%d", value=0)
-        jumlah_lot = st.number_input('📦 Jumlah Lot', step=0.5, format="%.1f", value=1.0)
-        
-        # Jika platform Custom, tampilkan input fee
-        if platform == "Custom":
-            st.markdown("""
-            <div style='margin-bottom: 16px;'>
-                <h3 style='color: #1a1a1a; margin-bottom: 12px;'>Masukkan Fee Kustom</h3>
-            </div>
-            """, unsafe_allow_html=True)
-            fee_beli = st.number_input("Fee Beli (persentase):", step=0.1, format="%.2f") / 100
-            fee_jual = st.number_input("Fee Jual (persentase):", step=0.1, format="%.2f") / 100
-        
-        # Tampilkan fee platform
-        st.markdown(f"""
-        <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
-            <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>💸 Fee Platform</h4>
-            <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Fee Beli: {fee_beli*100:.2f}% | Fee Jual: {fee_jual*100:.2f}%</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Opsi untuk mengaktifkan/menonaktifkan fee
-        include_fee_beli = st.checkbox("Masukkan Fee Beli", value=True)
-        include_fee_jual = st.checkbox("Masukkan Fee Jual", value=True)
-        
-        if st.button('Hitung Keuntungan', type='primary'):
+        # Input transaksi
+        st.markdown('<div class="section-title">💰 Input Transaksi</div>', unsafe_allow_html=True)
+        harga_beli_warrant = st.number_input('Harga Beli Warrant', min_value=0, step=1, format="%d", value=1)
+        harga_jual_warrant = st.number_input('Harga Jual Warrant', min_value=0, step=1, format="%d", value=47)
+        jumlah_lot = st.number_input('Jumlah Lot', step=0.5, format="%.1f", value=3.0)
+    
+    if st.button('Hitung Realized Gain', type='primary', use_container_width=True):
+        with st.spinner('Menghitung...'):
             # Hitung total beli dan jual
-            # Pastikan nilai positif dan valid
             harga_beli_warrant = max(0.0, float(harga_beli_warrant))
             harga_jual_warrant = max(0.0, float(harga_jual_warrant))
-            jumlah_lot = max(0.5, abs(jumlah_lot))  # Minimal 0.5 lot
-            fee_beli = min(1, abs(fee_beli))  # Maksimal 100%
-            fee_jual = min(1, abs(fee_jual))  # Maksimal 100%
+            jumlah_lot = max(0.5, abs(jumlah_lot))
             
-            total_beli = harga_beli_warrant * jumlah_lot * 100
-            total_jual = harga_jual_warrant * jumlah_lot * 100
+            # Hitung berdasarkan lot (seperti Stockbit)
+            jumlah_saham = jumlah_lot * 100
+            total_beli = harga_beli_warrant * jumlah_saham
+            total_jual = harga_jual_warrant * jumlah_saham
             
-            # Hitung fee
-            total_fee_beli = total_beli * fee_beli if include_fee_beli else 0
-            total_fee_jual = total_jual * fee_jual if include_fee_jual else 0
+            # Hitung fee (otomatis apply Stockbit fees)
+            total_fee_beli = total_beli * fee_beli
+            total_fee_jual = total_jual * fee_jual
             
-            # Hitung total modal dan hasil
+            # Hitung net amount (total jual - fee jual)
+            net_amount = total_jual - total_fee_jual
+            
+            # Hitung realized gain (net amount - total modal)
             total_modal = total_beli + total_fee_beli
-            total_hasil = total_jual - total_fee_jual
-            
-            # Hitung keuntungan
-            keuntungan = total_hasil - total_modal
+            keuntungan = net_amount - total_modal
             persentase_keuntungan = (keuntungan / total_modal * 100) if total_modal > 0 else 0
             
             # Bulatkan semua nilai
@@ -1104,46 +1580,51 @@ def warrant_calculator_page() -> None:
             total_fee_beli = round(total_fee_beli, 2)
             total_fee_jual = round(total_fee_jual, 2)
             total_modal = round(total_modal, 2)
-            total_hasil = round(total_hasil, 2)
+            net_amount = round(net_amount, 2)
             keuntungan = round(keuntungan, 2)
             persentase_keuntungan = round(persentase_keuntungan, 2)
             
-            # Tampilkan hasil
+            # Tampilkan hasil dalam format Stockbit
             st.markdown("""
             <div style='margin-bottom: 16px;'>
-                <h3 style='color: #1a1a1a; margin-bottom: 5px; font-size: 16px;'>📊 Hasil Perhitungan</h3>
+                <h3 style='color: #1a1a1a; margin-bottom: 5px; font-size: 16px;'>📊 Hasil Perhitungan Warrant (Stockbit)</h3>
             </div>
             """, unsafe_allow_html=True)
             
-            # Tampilkan total beli
+            # Tampilkan detail transaksi seperti Stockbit
             st.markdown(f"""
             <div style='margin-bottom: 8px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
-                <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>💰 Total Beli: {format_rupiah(total_beli)}</h4>
-                {f'<p style="margin: 4px 0 0 0; color: #6b7280; font-size: 14px;">Fee Beli: {format_rupiah(total_fee_beli)} ({fee_beli*100:.2f}%)</p>' if include_fee_beli else ''}
+                <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📋 Detail Transaksi</h4>
+                <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Price: {harga_jual_warrant}</p>
+                <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Lot Done: {jumlah_lot}</p>
+                <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Amount: {format_rupiah(total_jual)}</p>
+                <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Total Fee: {format_rupiah(total_fee_jual)}</p>
+                <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Net Amount: {format_rupiah(net_amount)}</p>
             </div>
             """, unsafe_allow_html=True)
             
-            # Tampilkan total jual
+            # Tampilkan total beli (modal awal)
             st.markdown(f"""
-            <div style='margin-bottom: 8px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #22c55e;'>
-                <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>💵 Total Jual: {format_rupiah(total_jual)}</h4>
-                {f'<p style="margin: 4px 0 0 0; color: #6b7280; font-size: 14px;">Fee Jual: {format_rupiah(total_fee_jual)} ({fee_jual*100:.2f}%)</p>' if include_fee_jual else ''}
+            <div style='margin-bottom: 8px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
+                <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>💰 Modal Awal: {format_rupiah(total_modal)}</h4>
+                <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Harga Beli: {format_rupiah(harga_beli_warrant)} × {jumlah_lot} lot</p>
+                <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Fee Beli: {format_rupiah(total_fee_beli)} ({fee_beli*100:.2f}%)</p>
             </div>
             """, unsafe_allow_html=True)
             
-            # Tampilkan keuntungan
+            # Tampilkan realized gain
             if keuntungan > 0:
                 st.markdown(f"""
                 <div style='margin-bottom: 8px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #22c55e;'>
-                    <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📈 Keuntungan: {format_rupiah(keuntungan)}</h4>
-                    <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Persentase: {persentase_keuntungan:.2f}%</p>
+                    <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📈 Realized Gain: +{format_rupiah(keuntungan)} (+{persentase_keuntungan:.2f}%)</h4>
+                    <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Net Amount: {format_rupiah(net_amount)} - Modal: {format_rupiah(total_modal)}</p>
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown(f"""
                 <div style='margin-bottom: 8px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #ef4444;'>
-                    <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📉 Kerugian: {format_rupiah(abs(keuntungan))}</h4>
-                    <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Persentase: {abs(persentase_keuntungan):.2f}%</p>
+                    <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📉 Realized Loss: {format_rupiah(keuntungan)} ({persentase_keuntungan:.2f}%)</h4>
+                    <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Net Amount: {format_rupiah(net_amount)} - Modal: {format_rupiah(total_modal)}</p>
                 </div>
                 """, unsafe_allow_html=True)
             
