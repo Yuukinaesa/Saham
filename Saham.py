@@ -832,15 +832,26 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
                         return float(value)
                     
                     # Data untuk screener - fokus pada kepemilikan dan market cap
+                    # Hitung Public Float % secara robust
+                    shares_out = safe_float(info.get('sharesOutstanding', 0))
+                    float_shares = safe_float(info.get('floatShares', 0))
+                    insider_pct = safe_float(info.get('heldPercentInsiders', 0)) * 100
+                    public_float_pct = 0.0
+                    if shares_out > 0 and float_shares > 0:
+                        public_float_pct = max(0.0, min(100.0, (float_shares / shares_out) * 100))
+                    elif insider_pct > 0:
+                        # Fallback: publik = 100 - insider
+                        public_float_pct = max(0.0, min(100.0, 100.0 - insider_pct))
+
                     data[symbol] = {
                         'Symbol': symbol.replace('.JK', ''),
                         'Current Price': current_price,
                         'Market Cap': safe_float(info.get('marketCap', 0)),
-                        'Shares Outstanding': safe_float(info.get('sharesOutstanding', 0)),
-                        'Float Shares': safe_float(info.get('floatShares', 0)),
+                        'Shares Outstanding': shares_out,
+                        'Float Shares': float_shares,
                         'Institutional Ownership %': safe_float(info.get('institutionOwnership', 0)) * 100,
-                        'Insider Ownership %': safe_float(info.get('heldPercentInsiders', 0)) * 100,
-                        'Public Float %': 0,  # Akan dihitung nanti
+                        'Insider Ownership %': insider_pct,
+                        'Public Float %': public_float_pct,
                         'Number of Institutions': safe_float(info.get('numberOfAnalystOpinions', 0)),
                         'Price/Book (PBVR)': safe_float(info.get('priceToBook', 0)),
                         'Trailing P/E (PER)': safe_float(info.get('trailingPE', 0)),
