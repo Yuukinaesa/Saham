@@ -6,6 +6,7 @@ from typing import Dict, List, Tuple
 import re
 import locale
 import numpy as np
+import time
 
 # Set locale untuk format Rupiah
 try:
@@ -34,6 +35,8 @@ PLATFORM_CONFIG = {
     "BNI Bions": (0.0017, 0.0027),
     "Custom": (0, 0)
 }
+
+# Fokus pada Yahoo Finance untuk data saham Indonesia
 
 def apply_global_css() -> None:
     """Menerapkan styling global ke aplikasi Streamlit."""
@@ -254,22 +257,20 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
                 st.warning(f"Tidak dapat menemukan harga valid untuk {symbol}")
                 continue
             
-            # Pastikan nilai persentase dalam bentuk desimal
-            forward_dividend_yield = float(info.get('dividendYield', 0))
-            roe = float(info.get('returnOnEquity', 0))
+            # Handle infinity values untuk semua metrics
+            def safe_float(value, default=0):
+                if value is None or pd.isna(value):
+                    return default
+                if value == float('inf') or value == float('-inf'):
+                    return default
+                return float(value)
             
-            # Handle infinity values
-            trailing_pe = info.get('trailingPE', 0)
-            if trailing_pe == float('inf') or trailing_pe == float('-inf'):
-                trailing_pe = 0
-                
-            price_to_book = info.get('priceToBook', 0)
-            if price_to_book == float('inf') or price_to_book == float('-inf'):
-                price_to_book = 0
-                
-            debt_to_equity = info.get('debtToEquity', 0)
-            if debt_to_equity == float('inf') or debt_to_equity == float('-inf'):
-                debt_to_equity = 0
+            # Pastikan nilai persentase dalam bentuk desimal
+            forward_dividend_yield = safe_float(info.get('dividendYield', 0))
+            roe = safe_float(info.get('returnOnEquity', 0))
+            trailing_pe = safe_float(info.get('trailingPE', 0))
+            price_to_book = safe_float(info.get('priceToBook', 0))
+            debt_to_equity = safe_float(info.get('debtToEquity', 0))
             
             data[symbol] = {
                 'Symbol': symbol.replace('.JK', ''),
@@ -503,14 +504,10 @@ def format_percent(value: float, decimals: int = 2) -> str:
         if pd.isna(value) or value == 0:
             return "0,00%"
             
-        # Pastikan nilai dalam bentuk desimal (0-1)
-        if abs(value) > 1:
-            value = value / 100
-            
-        # Format khusus untuk Forward Annual Dividend Yield
+        # Format langsung sebagai persentase (nilai sudah dalam bentuk persentase)
         if decimals == 2:
-            return f"{value*100:,.2f}%".replace(".", ",")
-        return f"{value*100:,.{decimals}f}%".replace(".", ",")
+            return f"{value:,.2f}%".replace(".", ",")
+        return f"{value:,.{decimals}f}%".replace(".", ",")
     except (ValueError, TypeError):
         return "0,00%"
 
@@ -532,6 +529,62 @@ def format_rupiah(value: float) -> str:
         return f"Rp {value:,.0f}".replace(",", ".")
     except (ValueError, TypeError):
         return "Rp 0"
+
+def format_short_number(value: float) -> str:
+    """Format angka besar menjadi format singkat (T, M, B).
+    
+    Args:
+        value (float): Nilai yang akan diformat
+        
+    Returns:
+        str: String yang sudah diformat dalam format singkat
+    """
+    try:
+        # Konversi ke float jika belum
+        value = float(value) if not isinstance(value, (int, float)) else value
+        
+        if pd.isna(value) or value == 0:
+            return "0"
+        
+        # Triliun (T)
+        if abs(value) >= 1e12:
+            return f"{value/1e12:.1f} T"
+        # Miliar (B)
+        elif abs(value) >= 1e9:
+            return f"{value/1e9:.1f} B"
+        # Juta (M)
+        elif abs(value) >= 1e6:
+            return f"{value/1e6:.1f} M"
+        # Ribu (K)
+        elif abs(value) >= 1e3:
+            return f"{value/1e3:.1f} K"
+        else:
+            return f"{value:.0f}"
+    except (ValueError, TypeError):
+        return "0"
+
+def format_csv_indonesia(value: float, decimals: int = 2) -> str:
+    """Format angka untuk CSV dengan format Indonesia (koma sebagai desimal, titik sebagai ribuan).
+    
+    Args:
+        value (float): Nilai yang akan diformat
+        decimals (int): Jumlah desimal
+        
+    Returns:
+        str: String yang sudah diformat untuk CSV Indonesia
+    """
+    try:
+        value = float(value) if not isinstance(value, (int, float)) else value
+        if pd.isna(value) or value == 0:
+            return "0"
+        
+        # Format dengan koma sebagai desimal dan titik sebagai ribuan
+        if decimals == 0:
+            return f"{value:,.0f}".replace(",", ".")
+        else:
+            return f"{value:,.{decimals}f}".replace(",", ".")
+    except (ValueError, TypeError):
+        return "0"
 
 def format_number(value: float, decimals: int = 2) -> str:
     """Format angka menjadi format yang rapi.
@@ -656,7 +709,7 @@ def stock_scraper_page() -> None:
                     'Price/Book (PBVR)': lambda x: format_ratio(x),
                     'Trailing P/E (PER)': lambda x: format_ratio(x),
                     'Total Debt/Equity (mrq) (DER)': lambda x: format_ratio(x),
-                    'Return on Equity (%) (ROE)': lambda x: format_percent(x, 0),
+                    'Return on Equity (%) (ROE)': lambda x: f"{round(x):.0f}%",
                     'Diluted EPS (ttm) (EPS)': lambda x: format_rupiah(x),
                     'Forward Annual Dividend Rate (DPS)': lambda x: format_rupiah(x),
                     'Forward Annual Dividend Yield (%)': lambda x: format_percent(x, 2),
@@ -680,6 +733,361 @@ def stock_scraper_page() -> None:
                         use_container_width=True,
                         height=table_height
                     )
+                    
+                    # Download CSV untuk scraper saham dengan format Indonesia
+                    df_download = df_display.copy()
+                    
+                    # Format kolom untuk download dengan format Indonesia
+                    for col in df_download.columns:
+                        if col in ['Current Price', 'Forward Annual Dividend Rate (DPS)', 'Dividen', 'Modal']:
+                            # Format Rupiah untuk download dengan format Indonesia
+                            df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
+                        elif col in ['Price/Book (PBVR)', 'Trailing P/E (PER)', 'Total Debt/Equity (mrq) (DER)']:
+                            # Format ratio untuk download dengan format Indonesia
+                            df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 2) if pd.notna(x) else "0")
+                        elif col in ['Return on Equity (%) (ROE)', 'Forward Annual Dividend Yield (%)']:
+                            # Format persentase untuk download dengan format Indonesia
+                            df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 2) if pd.notna(x) else "0")
+                        elif col in ['Diluted EPS (ttm) (EPS)']:
+                            # Format EPS untuk download dengan format Indonesia
+                            df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
+                    
+                    csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+                    st.download_button(
+                        label="📥 Download as CSV",
+                        data=csv,
+                        file_name="scraper_saham.csv",
+                        mime="text/csv"
+                    )
+
+            except Exception as e:
+                st.error(f"Terjadi kesalahan: {str(e)}")
+
+
+def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
+    """Mengambil data saham yang lebih lengkap untuk screener dengan multiple sources.
+    
+    Args:
+        symbols (List[str]): List simbol saham
+        
+    Returns:
+        Dict[str, Dict[str, float]]: Dictionary berisi data saham yang lebih lengkap
+    """
+    data = {}
+    
+    # Loading indicator sederhana
+    if len(symbols) > 5:
+        with st.spinner("Menganalisis saham..."):
+            pass
+    
+    for i, symbol in enumerate(symbols):
+        try:
+            
+            # Pastikan simbol memiliki format yang benar
+            if not symbol.endswith('.JK'):
+                symbol = f"{symbol}.JK"
+                
+            # Coba mengambil data dengan retry mechanism
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    stock = yf.Ticker(symbol)
+                    info = stock.info
+                    
+                    # Jika info kosong, coba lagi
+                    if not info or len(info) < 5:
+                        if attempt < max_retries - 1:
+                            time.sleep(1)  # Tunggu 1 detik sebelum retry
+                            continue
+                        else:
+                            st.warning(f"Tidak ada data lengkap untuk {symbol}")
+                            break
+                    
+                    # Coba beberapa kunci untuk mendapatkan harga dengan prioritas
+                    current_price = None
+                    price_keys = [
+                        'regularMarketPrice', 'currentPrice', 'regularMarketPreviousClose', 
+                        'previousClose', 'ask', 'bid', 'open'
+                    ]
+                    
+                    for key in price_keys:
+                        if key in info and info[key] is not None and info[key] > 0:
+                            current_price = info[key]
+                            break
+                    
+                    if current_price is None:
+                        if attempt < max_retries - 1:
+                            time.sleep(1)
+                            continue
+                        else:
+                            st.warning(f"Tidak dapat menemukan harga valid untuk {symbol}")
+                            break
+                    
+                    # Handle infinity dan NaN values dengan lebih baik
+                    def safe_float(value, default=0):
+                        if value is None or pd.isna(value):
+                            return default
+                        if value == float('inf') or value == float('-inf'):
+                            return default
+                        return float(value)
+                    
+                    # Data untuk screener - fokus pada kepemilikan dan market cap
+                    data[symbol] = {
+                        'Symbol': symbol.replace('.JK', ''),
+                        'Current Price': current_price,
+                        'Market Cap': safe_float(info.get('marketCap', 0)),
+                        'Shares Outstanding': safe_float(info.get('sharesOutstanding', 0)),
+                        'Float Shares': safe_float(info.get('floatShares', 0)),
+                        'Institutional Ownership %': safe_float(info.get('institutionOwnership', 0)) * 100,
+                        'Insider Ownership %': safe_float(info.get('heldPercentInsiders', 0)) * 100,
+                        'Public Float %': 0,  # Akan dihitung nanti
+                        'Number of Institutions': safe_float(info.get('numberOfAnalystOpinions', 0)),
+                        'Price/Book (PBVR)': safe_float(info.get('priceToBook', 0)),
+                        'Trailing P/E (PER)': safe_float(info.get('trailingPE', 0)),
+                        'Return on Equity (%) (ROE)': safe_float(info.get('returnOnEquity', 0)),
+                        'Return on Assets (%) (ROA)': safe_float(info.get('returnOnAssets', 0)),
+                        'Return on Capital (%) (ROC)': safe_float(info.get('returnOnCapital', 0)),
+                        'Net Income': safe_float(info.get('netIncomeToCommon', 0)),
+                        'Cash from Operations': safe_float(info.get('operatingCashflow', 0)),
+                        'Free Cash Flow': safe_float(info.get('freeCashflow', info.get('freeCashFlow', info.get('operatingCashflow', 0)))),
+                        'Total Assets': safe_float(info.get('totalAssets', 0)),
+                        'Total Equity': safe_float(info.get('totalStockholderEquity', 0)),
+                        'Total Liabilities': safe_float(info.get('totalDebt', 0)),
+                        'EPS': safe_float(info.get('trailingEps', 0)),
+                        'Dividend Yield %': safe_float(info.get('dividendYield', 0)) * 100,
+                    }
+                    
+                    # Jika berhasil, keluar dari retry loop
+                    break
+                    
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        time.sleep(2)  # Tunggu lebih lama untuk retry
+                        continue
+                    else:
+                        st.error(f"Error saat mengambil data {symbol}: {str(e)}")
+                        continue
+            
+            # Rate limiting untuk menghindari block
+            if i < len(symbols) - 1:
+                time.sleep(0.5)
+                
+        except Exception as e:
+            st.error(f"Error umum saat mengambil data {symbol}: {str(e)}")
+            continue
+    
+    # Clear progress indicator
+    if len(symbols) > 5:
+        st.empty()
+            
+    return data
+
+def get_simple_arrow(value: float) -> str:
+    """Mendapatkan arrow sederhana untuk financial indicators dengan emoji berwarna.
+    
+    Args:
+        value (float): Nilai yang akan dievaluasi (dalam persentase)
+        
+    Returns:
+        str: Arrow dengan persentase dan emoji berwarna (contoh: 🟢↑ 5.97%)
+    """
+    if pd.isna(value) or value == 0:
+        return "—"
+    
+    # Konversi ke persentase jika belum
+    if abs(value) < 1:
+        value = value * 100
+    
+    if value > 0:
+        return f"🟢↑ {value:.2f}%"
+    else:
+        return f"🔴↓ {abs(value):.2f}%"
+
+def stock_screener_page() -> None:
+    """Halaman untuk screener saham dengan fokus pada kepemilikan dan financial indicators."""
+    st.info('**Screener Saham: Analisis kepemilikan saham dan indikator financial utama dengan data yang lebih akurat.**')
+    
+    # Informasi tentang data source
+    with st.expander("ℹ️ Tentang Data Source", expanded=False):
+        st.markdown("""
+        <div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px;'>
+            <h4 style='color: #1a1a1a; margin: 0 0 12px 0;'>📊 Sumber Data</h4>
+            <ul style='margin: 0; padding-left: 20px; color: #6b7280; font-size: 14px;'>
+                <li><strong>Primary Source:</strong> Yahoo Finance (data global)</li>
+                <li><strong>Data Validation:</strong> Multiple price keys untuk akurasi maksimal</li>
+                <li><strong>Error Handling:</strong> 3x retry dengan rate limiting</li>
+                <li><strong>Data Quality:</strong> Filter infinity/NaN values</li>
+                <li><strong>Update Frequency:</strong> Real-time saat aplikasi dijalankan</li>
+            </ul>
+            <p style='margin: 12px 0 0 0; color: #6b7280; font-size: 14px;'>
+                <strong>Note:</strong> Data kepemilikan dari Yahoo Finance menunjukkan investor global (Vanguard, iShares, dll) dan insider yang terlapor secara internasional. Data ini berbeda dengan data lokal BEI/Stockbit yang fokus pada pemegang saham domestik.
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Input section
+    col1, col2 = st.columns(2, gap="small")
+    with col1:
+        symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', DEFAULT_SYMBOLS)
+    with col2:
+        st.markdown("""
+        <div style='background-color: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #2563eb;'>
+            <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📊 Indikator Screener</h4>
+            <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>
+                • Market Cap & Kepemilikan<br>
+                • Institutional & Insider Ownership<br>
+                • Financial Performance (ROE, ROA, ROC)<br>
+                • Cash Flow & Balance Sheet
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    if st.button('Screener Saham', key='screener_data'):
+        with st.spinner('Menganalisis saham...'):
+            try:
+                symbols_list = [
+                    sanitize_stock_symbol(symbol.strip().upper()) + '.JK' 
+                    if '.JK' not in symbol.strip().upper() 
+                    else sanitize_stock_symbol(symbol.strip().upper())
+                    for symbol in symbols.split(',')
+                ]
+
+                stocks_data = fetch_enhanced_stock_data(symbols_list)
+                if not stocks_data:
+                    st.error("Tidak ada data saham yang berhasil diambil")
+                    return
+                    
+                # Konversi ke DataFrame
+                df = pd.DataFrame(stocks_data).T
+                
+                # Konversi kolom numerik dan handle infinity
+                numeric_columns = ['Current Price', 'Market Cap', 'Shares Outstanding', 'Float Shares',
+                                 'Institutional Ownership %', 'Insider Ownership %', 'Number of Institutions',
+                                 'Price/Book (PBVR)', 'Trailing P/E (PER)', 'Return on Equity (%) (ROE)',
+                                 'Return on Assets (%) (ROA)', 'Return on Capital (%) (ROC)',
+                                 'Net Income', 'Cash from Operations', 'Free Cash Flow',
+                                 'Total Assets', 'Total Equity', 'Total Liabilities']
+                
+                for col in numeric_columns:
+                    if col in df.columns:
+                        df[col] = pd.to_numeric(df[col], errors='coerce').replace([np.inf, -np.inf], 0)
+
+                # Hitung persentase public float (saham yang dapat diperdagangkan publik)
+                df['Public Float %'] = (df['Float Shares'] / df['Shares Outstanding'] * 100).fillna(0)
+                
+                # Tambahkan arrow sederhana untuk financial indicators
+                df['ROE Change'] = df['Return on Equity (%) (ROE)'].apply(lambda x: get_simple_arrow(x))
+                df['ROA Change'] = df['Return on Assets (%) (ROA)'].apply(lambda x: get_simple_arrow(x))
+                df['ROC Change'] = df['Return on Capital (%) (ROC)'].apply(lambda x: get_simple_arrow(x))
+                
+                # Bulatkan semua nilai numerik
+                for col in numeric_columns + ['Public Float %']:
+                    if col in df.columns:
+                        df[col] = df[col].round(2)
+
+                # Filter hanya saham yang valid (harga > 0)
+                df_display = df[df['Current Price'] > 0].copy()
+                df_display = df_display.reset_index(drop=True)
+                df_display.index = df_display.index + 1
+                
+                # Tampilkan hasil screener
+                st.markdown("""
+                <div style='margin-bottom: 16px;'>
+                    <h3 style='color: #1a1a1a; margin-bottom: 5px; font-size: 18px;'>📊 Hasil Screener Saham</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                
+                # Tampilkan tabel utama dengan expander
+                with st.expander("📈 Tampilkan Data Screener Lengkap", expanded=True):
+                    # Pilih kolom yang akan ditampilkan - fokus pada yang paling berguna
+                    display_columns = [
+                        'Symbol', 'Current Price', 'Market Cap', 
+                        'Public Float %', 'Insider Ownership %',
+                        'Price/Book (PBVR)', 'Trailing P/E (PER)',
+                        'Return on Equity (%) (ROE)', 'ROE Change',
+                        'Return on Assets (%) (ROA)', 'ROA Change',
+                        'Net Income', 'Free Cash Flow', 'EPS', 'Dividend Yield %'
+                    ]
+                    
+                    # Filter kolom yang ada
+                    available_columns = [col for col in display_columns if col in df_display.columns]
+                    df_screener = df_display[available_columns].copy()
+                    
+                    # Format dataframe
+                    format_dict = {
+                        'Current Price': lambda x: format_rupiah(x),
+                        'Market Cap': lambda x: format_short_number(x),
+                        'Public Float %': lambda x: format_percent(x, 1),
+                        'Insider Ownership %': lambda x: format_percent(x, 1),
+                        'Price/Book (PBVR)': lambda x: format_ratio(x),
+                        'Trailing P/E (PER)': lambda x: format_ratio(x),
+                        'Return on Equity (%) (ROE)': lambda x: format_percent(x, 1),
+                        'Return on Assets (%) (ROA)': lambda x: format_percent(x, 1),
+                        'Net Income': lambda x: format_short_number(x),
+                        'Free Cash Flow': lambda x: format_short_number(x),
+                        'EPS': lambda x: format_rupiah(x),
+                        'Dividend Yield %': lambda x: format_percent(x, 1),
+                    }
+                    
+                    # Hitung tinggi tabel
+                    table_height = min(600, len(df_screener) * 40 + 50)
+                    
+                    st.dataframe(
+                        format_dataframe(df_screener, format_dict),
+                        use_container_width=True,
+                        height=table_height
+                    )
+                    
+                    # Download CSV dengan format yang lebih baik
+                    # Buat copy dataframe untuk download
+                    df_download = df_screener.copy()
+                    
+                    # Format kolom untuk download dengan format Indonesia
+                    for col in df_download.columns:
+                        if 'Change' in col:
+                            # Hapus emoji dan HTML tags untuk download
+                            df_download[col] = df_download[col].astype(str).str.replace('🟢↑', '↑').str.replace('🔴↓', '↓')
+                        elif col in ['Current Price', 'Market Cap', 'Net Income', 'Free Cash Flow', 'EPS']:
+                            # Format angka untuk download dengan format Indonesia
+                            df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
+                        elif col in ['Public Float %', 'Insider Ownership %', 'Return on Equity (%) (ROE)', 'Return on Assets (%) (ROA)', 'Dividend Yield %']:
+                            # Format persentase untuk download dengan format Indonesia
+                            df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 2) if pd.notna(x) else "0")
+                        elif col in ['Price/Book (PBVR)', 'Trailing P/E (PER)']:
+                            # Format ratio untuk download dengan format Indonesia
+                            df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 2) if pd.notna(x) else "0")
+                    
+                    # Download CSV dengan separator yang tepat dan quote semua field
+                    csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+                    st.download_button(
+                        label="📥 Download as CSV",
+                        data=csv,
+                        file_name="screener_saham.csv",
+                        mime="text/csv"
+                    )
+                
+                # Tampilkan penjelasan indikator
+                with st.expander("📋 Penjelasan Indikator", expanded=False):
+                    st.markdown("""
+                    <div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px;'>
+                        <h4 style='color: #1a1a1a; margin: 0 0 12px 0;'>📊 Penjelasan Indikator Screener</h4>
+                        <ul style='margin: 0; padding-left: 20px; color: #6b7280; font-size: 14px;'>
+                            <li><strong>Market Cap:</strong> Kapitalisasi pasar (harga × jumlah saham)</li>
+                            <li><strong>Public Float %:</strong> Persentase saham yang dapat diperdagangkan bebas</li>
+                            <li><strong>Insider Ownership %:</strong> Persentase kepemilikan insider/management</li>
+                            <li><strong>Price/Book (PBVR):</strong> Rasio harga terhadap nilai buku</li>
+                            <li><strong>Trailing P/E (PER):</strong> Rasio harga terhadap laba per saham</li>
+                            <li><strong>ROE (Return on Equity):</strong> Efisiensi penggunaan modal</li>
+                            <li><strong>ROA (Return on Assets):</strong> Efisiensi penggunaan aset</li>
+                            <li><strong>Net Income:</strong> Laba bersih perusahaan</li>
+                            <li><strong>Free Cash Flow:</strong> Arus kas bebas</li>
+                        </ul>
+                        <p style='margin: 12px 0 0 0; color: #6b7280; font-size: 14px;'>
+                            <strong>Financial Indicators:</strong> 🟢↑ Positif | 🔴↓ Negatif | — Tidak Tersedia
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
 
             except Exception as e:
                 st.error(f"Terjadi kesalahan: {str(e)}")
@@ -903,6 +1311,26 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
             
             df_detail = pd.DataFrame(detail_data)
             st.dataframe(df_detail, use_container_width=True, hide_index=True)
+            
+            # Download CSV untuk kalkulator saham dengan format Indonesia
+            df_download = df_detail.copy()
+            
+            # Format kolom untuk download dengan format Indonesia
+            for col in df_download.columns:
+                if col in ['Harga Beli', 'Harga Jual', 'Total Beli', 'Total Jual', 'Profit/Loss']:
+                    # Format Rupiah untuk download dengan format Indonesia
+                    df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
+                elif col in ['Profit/Loss %']:
+                    # Format persentase untuk download dengan format Indonesia
+                    df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 2) if pd.notna(x) else "0")
+            
+            csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+            st.download_button(
+                label="📥 Download as CSV",
+                data=csv,
+                file_name="kalkulator_saham.csv",
+                mime="text/csv"
+            )
 
 def realized_gain_calculator() -> None:
     """Kalkulator untuk realized gain."""
@@ -1039,6 +1467,20 @@ def compound_interest_page() -> None:
                         df.set_index(df.index + 1),
                         use_container_width=True,
                         height=400
+                    )
+                    
+                    # Download CSV untuk compound interest dengan format Indonesia
+                    df_download = df.copy()
+                    
+                    # Format kolom Amount untuk download dengan format Indonesia
+                    df_download['Amount'] = df_download['Amount'].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
+                    
+                    csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+                    st.download_button(
+                        label="📥 Download as CSV",
+                        data=csv,
+                        file_name="compound_interest.csv",
+                        mime="text/csv"
                     )
 
                 for year_num in range(1, int(years) + 1):
@@ -1513,6 +1955,26 @@ def ara_arb_calculator_page() -> None:
                 
                 st.markdown("</div>", unsafe_allow_html=True)
                 
+                # Download CSV untuk ARA ARB dengan format Indonesia
+                df_ara_arb = pd.DataFrame(display_data)
+                
+                # Format kolom untuk download dengan format Indonesia
+                for col in df_ara_arb.columns:
+                    if col in ['Harga', 'Perubahan']:
+                        # Format Rupiah untuk download dengan format Indonesia
+                        df_ara_arb[col] = df_ara_arb[col].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
+                    elif col in ['Persentase', 'Kumulatif']:
+                        # Format persentase untuk download dengan format Indonesia
+                        df_ara_arb[col] = df_ara_arb[col].apply(lambda x: format_csv_indonesia(x, 2) if pd.notna(x) else "0")
+                
+                csv = df_ara_arb.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+                st.download_button(
+                    label="📥 Download as CSV",
+                    data=csv,
+                    file_name="ara_arb_calculator.csv",
+                    mime="text/csv"
+                )
+                
                 # Tampilkan penjelasan
                 st.markdown("""
                 <div style='margin-top: 16px; background-color: #f8f9fa; padding: 12px; border-radius: 6px;'>
@@ -1628,6 +2090,28 @@ def warrant_calculator_page() -> None:
                 </div>
                 """, unsafe_allow_html=True)
             
+            # Download CSV untuk warrant calculator dengan format Indonesia
+            warrant_data = {
+                'Symbol': [symbol_warrant],
+                'Harga Beli': [format_csv_indonesia(harga_beli_warrant, 0)],
+                'Jumlah Lot': [jumlah_lot],
+                'Total Modal': [format_csv_indonesia(total_modal, 0)],
+                'Fee Beli': [format_csv_indonesia(total_fee_beli, 0)],
+                'Harga Jual': [format_csv_indonesia(harga_jual_warrant, 0)],
+                'Net Amount': [format_csv_indonesia(net_amount, 0)],
+                'Keuntungan': [format_csv_indonesia(keuntungan, 0)],
+                'Persentase Keuntungan': [format_csv_indonesia(persentase_keuntungan, 2)]
+            }
+            
+            df_warrant = pd.DataFrame(warrant_data)
+            csv = df_warrant.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+            st.download_button(
+                label="📥 Download as CSV",
+                data=csv,
+                file_name="warrant_calculator.csv",
+                mime="text/csv"
+            )
+            
 
 def main() -> None:
     """Fungsi utama untuk menjalankan aplikasi Streamlit."""
@@ -1652,8 +2136,8 @@ def main() -> None:
         
         menu_selection = option_menu(
             None,
-            ["Scraper Saham", "Kalkulator Saham", "Compound Interest", "ARA ARB Calculator", "Warrant Calculator"],
-            icons=["graph-up", "calculator", "bookmark", "percent", "ticket-perforated"],
+            ["Scraper Saham", "Screener Saham", "Kalkulator Saham", "Compound Interest", "ARA ARB Calculator", "Warrant Calculator"],
+            icons=["graph-up", "search", "calculator", "bookmark", "percent", "ticket-perforated"],
             menu_icon="cast",
             default_index=0,
             orientation="vertical",
@@ -1686,6 +2170,8 @@ def main() -> None:
 
         if menu_selection == "Scraper Saham":
             stock_scraper_page()
+        elif menu_selection == "Screener Saham":
+            stock_screener_page()
         elif menu_selection == "Kalkulator Saham":
             # Submenu untuk Calculator
             st.markdown("""
