@@ -709,7 +709,7 @@ def stock_scraper_page() -> None:
                     'Price/Book (PBVR)': lambda x: format_ratio(x),
                     'Trailing P/E (PER)': lambda x: format_ratio(x),
                     'Total Debt/Equity (mrq) (DER)': lambda x: format_ratio(x),
-                    'Return on Equity (%) (ROE)': lambda x: f"{round(x):.0f}%",
+                    'Return on Equity (%) (ROE)': lambda x: f"{round((x or 0)*100):.0f}%",
                     'Diluted EPS (ttm) (EPS)': lambda x: format_rupiah(x),
                     'Forward Annual Dividend Rate (DPS)': lambda x: format_rupiah(x),
                     'Forward Annual Dividend Yield (%)': lambda x: format_percent(x, 2),
@@ -904,43 +904,14 @@ def get_simple_arrow(value: float) -> str:
         return f"🔴↓ {abs(value):.2f}%"
 
 def stock_screener_page() -> None:
-    """Halaman untuk screener saham dengan fokus pada kepemilikan dan financial indicators."""
-    st.info('**Screener Saham: Analisis kepemilikan saham dan indikator financial utama dengan data yang lebih akurat.**')
-    
-    # Informasi tentang data source
-    with st.expander("ℹ️ Tentang Data Source", expanded=False):
-        st.markdown("""
-        <div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px;'>
-            <h4 style='color: #1a1a1a; margin: 0 0 12px 0;'>📊 Sumber Data</h4>
-            <ul style='margin: 0; padding-left: 20px; color: #6b7280; font-size: 14px;'>
-                <li><strong>Primary Source:</strong> Yahoo Finance (data global)</li>
-                <li><strong>Data Validation:</strong> Multiple price keys untuk akurasi maksimal</li>
-                <li><strong>Error Handling:</strong> 3x retry dengan rate limiting</li>
-                <li><strong>Data Quality:</strong> Filter infinity/NaN values</li>
-                <li><strong>Update Frequency:</strong> Real-time saat aplikasi dijalankan</li>
-            </ul>
-            <p style='margin: 12px 0 0 0; color: #6b7280; font-size: 14px;'>
-                <strong>Note:</strong> Data kepemilikan dari Yahoo Finance menunjukkan investor global (Vanguard, iShares, dll) dan insider yang terlapor secara internasional. Data ini berbeda dengan data lokal BEI/Stockbit yang fokus pada pemegang saham domestik.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+    """Halaman untuk screener saham dengan fokus pada kepemilikan dan indikator inti."""
     
     # Input section
     col1, col2 = st.columns(2, gap="small")
     with col1:
         symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', DEFAULT_SYMBOLS)
     with col2:
-        st.markdown("""
-        <div style='background-color: #f8f9fa; padding: 12px; border-radius: 6px; border-left: 3px solid #2563eb;'>
-            <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>📊 Indikator Screener</h4>
-            <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>
-                • Market Cap & Kepemilikan<br>
-                • Institutional & Insider Ownership<br>
-                • Financial Performance (ROE, ROA, ROC)<br>
-                • Cash Flow & Balance Sheet
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.empty()
 
     if st.button('Screener Saham', key='screener_data'):
         with st.spinner('Menganalisis saham...'):
@@ -1000,14 +971,13 @@ def stock_screener_page() -> None:
                 
                 # Tampilkan tabel utama dengan expander
                 with st.expander("📈 Tampilkan Data Screener Lengkap", expanded=True):
-                    # Pilih kolom yang akan ditampilkan - fokus pada yang paling berguna
+                    # Pilih kolom yang akan ditampilkan - fokus ringkas sesuai permintaan
                     display_columns = [
                         'Symbol', 'Current Price', 'Market Cap', 
                         'Public Float %', 'Insider Ownership %',
-                        'Price/Book (PBVR)', 'Trailing P/E (PER)',
-                        'Return on Equity (%) (ROE)', 'ROE Change',
-                        'Return on Assets (%) (ROA)', 'ROA Change',
-                        'Net Income', 'Free Cash Flow', 'EPS', 'Dividend Yield %'
+                        'Price/Book (PBVR)',
+                        'ROE Change', 'ROA Change',
+                        'Net Income', 'Free Cash Flow'
                     ]
                     
                     # Filter kolom yang ada
@@ -1021,13 +991,8 @@ def stock_screener_page() -> None:
                         'Public Float %': lambda x: format_percent(x, 1),
                         'Insider Ownership %': lambda x: format_percent(x, 1),
                         'Price/Book (PBVR)': lambda x: format_ratio(x),
-                        'Trailing P/E (PER)': lambda x: format_ratio(x),
-                        'Return on Equity (%) (ROE)': lambda x: format_percent(x, 1),
-                        'Return on Assets (%) (ROA)': lambda x: format_percent(x, 1),
                         'Net Income': lambda x: format_short_number(x),
                         'Free Cash Flow': lambda x: format_short_number(x),
-                        'EPS': lambda x: format_rupiah(x),
-                        'Dividend Yield %': lambda x: format_percent(x, 1),
                     }
                     
                     # Hitung tinggi tabel
@@ -1067,27 +1032,7 @@ def stock_screener_page() -> None:
                         mime="text/csv"
                     )
                 
-                # Tampilkan penjelasan indikator
-                with st.expander("📋 Penjelasan Indikator", expanded=False):
-                    st.markdown("""
-                    <div style='background-color: #f8f9fa; padding: 16px; border-radius: 8px;'>
-                        <h4 style='color: #1a1a1a; margin: 0 0 12px 0;'>📊 Penjelasan Indikator Screener</h4>
-                        <ul style='margin: 0; padding-left: 20px; color: #6b7280; font-size: 14px;'>
-                            <li><strong>Market Cap:</strong> Kapitalisasi pasar (harga × jumlah saham)</li>
-                            <li><strong>Public Float %:</strong> Persentase saham yang dapat diperdagangkan bebas</li>
-                            <li><strong>Insider Ownership %:</strong> Persentase kepemilikan insider/management</li>
-                            <li><strong>Price/Book (PBVR):</strong> Rasio harga terhadap nilai buku</li>
-                            <li><strong>Trailing P/E (PER):</strong> Rasio harga terhadap laba per saham</li>
-                            <li><strong>ROE (Return on Equity):</strong> Efisiensi penggunaan modal</li>
-                            <li><strong>ROA (Return on Assets):</strong> Efisiensi penggunaan aset</li>
-                            <li><strong>Net Income:</strong> Laba bersih perusahaan</li>
-                            <li><strong>Free Cash Flow:</strong> Arus kas bebas</li>
-                        </ul>
-                        <p style='margin: 12px 0 0 0; color: #6b7280; font-size: 14px;'>
-                            <strong>Financial Indicators:</strong> 🟢↑ Positif | 🔴↓ Negatif | — Tidak Tersedia
-                        </p>
-                    </div>
-                    """, unsafe_allow_html=True)
+                # Penjelasan indikator dihapus sesuai permintaan
 
             except Exception as e:
                 st.error(f"Terjadi kesalahan: {str(e)}")
@@ -1975,21 +1920,7 @@ def ara_arb_calculator_page() -> None:
                     mime="text/csv"
                 )
                 
-                # Tampilkan penjelasan
-                st.markdown("""
-                <div style='margin-top: 16px; background-color: #f8f9fa; padding: 12px; border-radius: 6px;'>
-                    <h5 style='color: #1a1a1a; margin: 0 0 8px 0;'>📋 Penjelasan:</h5>
-                    <ul style='margin: 0; padding-left: 20px; color: #6b7280; font-size: 14px;'>
-                        <li><strong>Harga:</strong> Harga saham dalam Rupiah</li>
-                        <li><strong>Perubahan:</strong> Selisih harga dari langkah sebelumnya</li>
-                        <li><strong>Persentase:</strong> Persentase perubahan dari langkah sebelumnya</li>
-                        <li><strong>Kumulatif:</strong> Total persentase perubahan dari harga dasar</li>
-                        <li><span style='color: #22c55e;'>🟢 Hijau:</span> Harga ARA (Auto Reject Above)</li>
-                        <li><span style='color: #6b7280;'>⚪ Abu-abu:</span> Harga Dasar</li>
-                        <li><span style='color: #ef4444;'>🔴 Merah:</span> Harga ARB (Auto Reject Below)</li>
-                    </ul>
-                </div>
-                """, unsafe_allow_html=True)
+                # Penjelasan dihapus sesuai permintaan
                 
             else:
                 st.error(f"Harga saham harus minimal Rp {min_value}")
@@ -2006,7 +1937,7 @@ def warrant_calculator_page() -> None:
     col1, col2 = st.columns(2, gap="small")
     
     with col1:
-        # Input transaksi
+        # Input transaksi (single)
         st.markdown('<div class="section-title">💰 Input Transaksi</div>', unsafe_allow_html=True)
         harga_beli_warrant = st.number_input('Harga Beli Warrant', min_value=0, step=1, format="%d", value=1)
         harga_jual_warrant = st.number_input('Harga Jual Warrant', min_value=0, step=1, format="%d", value=47)
@@ -2090,9 +2021,8 @@ def warrant_calculator_page() -> None:
                 </div>
                 """, unsafe_allow_html=True)
             
-            # Download CSV untuk warrant calculator dengan format Indonesia
+            # Download CSV untuk warrant calculator (single) dengan format Indonesia
             warrant_data = {
-                'Symbol': [symbol_warrant],
                 'Harga Beli': [format_csv_indonesia(harga_beli_warrant, 0)],
                 'Jumlah Lot': [jumlah_lot],
                 'Total Modal': [format_csv_indonesia(total_modal, 0)],
@@ -2111,7 +2041,72 @@ def warrant_calculator_page() -> None:
                 file_name="warrant_calculator.csv",
                 mime="text/csv"
             )
-            
+    
+    # Multiple warrant calculator
+    st.markdown('<div class="section-title">📚 Multiple Warrant</div>', unsafe_allow_html=True)
+    jumlah_warrant = st.number_input('Jumlah baris warrant', min_value=1, step=1, value=2)
+    multiple_rows = []
+    for i in range(int(jumlah_warrant)):
+        c1, c2, c3, c4 = st.columns(4, gap="small")
+        with c1:
+            sym = st.text_input(f'Symbol #{i+1}', value=f'W{i+1}', key=f'w_sym_{i}').strip().upper()
+        with c2:
+            beli = st.number_input(f'Harga Beli #{i+1}', min_value=0.0, step=1.0, format="%0.0f", value=1.0, key=f'w_beli_{i}')
+        with c3:
+            jual = st.number_input(f'Harga Jual #{i+1}', min_value=0.0, step=1.0, format="%0.0f", value=47.0, key=f'w_jual_{i}')
+        with c4:
+            lot = st.number_input(f'Lot #{i+1}', step=0.5, format="%.1f", value=3.0, key=f'w_lot_{i}')
+        multiple_rows.append((sym, beli, jual, lot))
+
+    if st.button('Hitung Multiple Warrant', use_container_width=True):
+        with st.spinner('Menghitung...'):
+            hasil_rows = []
+            total_modal_all = 0.0
+            total_keuntungan_all = 0.0
+            for sym, beli, jual, lot in multiple_rows:
+                lot = max(0.5, abs(float(lot)))
+                beli = max(0.0, float(beli))
+                jual = max(0.0, float(jual))
+                jumlah_saham = lot * 100
+                total_beli = beli * jumlah_saham
+                total_jual = jual * jumlah_saham
+                fee_b = total_beli * fee_beli
+                fee_j = total_jual * fee_jual
+                net_amt = total_jual - fee_j
+                modal = total_beli + fee_b
+                untung = net_amt - modal
+                pct = (untung / modal * 100) if modal > 0 else 0
+                total_modal_all += modal
+                total_keuntungan_all += untung
+                hasil_rows.append({
+                    'Symbol': sym,
+                    'Harga Beli': beli,
+                    'Harga Jual': jual,
+                    'Lot': lot,
+                    'Total Modal': modal,
+                    'Net Amount': net_amt,
+                    'Keuntungan': untung,
+                    'Persentase %': pct,
+                })
+
+            df_w_multi = pd.DataFrame(hasil_rows)
+            # Tampilkan tabel terformat
+            df_view = df_w_multi.copy()
+            df_view['Harga Beli'] = df_view['Harga Beli'].apply(lambda x: format_rupiah(x))
+            df_view['Harga Jual'] = df_view['Harga Jual'].apply(lambda x: format_rupiah(x))
+            df_view['Total Modal'] = df_view['Total Modal'].apply(lambda x: format_rupiah(x))
+            df_view['Net Amount'] = df_view['Net Amount'].apply(lambda x: format_rupiah(x))
+            df_view['Keuntungan'] = df_view['Keuntungan'].apply(lambda x: format_rupiah(x))
+            df_view['Persentase %'] = df_view['Persentase %'].apply(lambda x: format_percent(x, 2))
+            st.dataframe(df_view, use_container_width=True, hide_index=True)
+
+            # Download CSV format Indonesia dengan ;
+            df_download = df_w_multi.copy()
+            for col in ['Harga Beli','Harga Jual','Total Modal','Net Amount','Keuntungan']:
+                df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 0))
+            df_download['Persentase %'] = df_download['Persentase %'].apply(lambda x: format_csv_indonesia(x, 2))
+            csv_multi = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+            st.download_button(label='📥 Download Multiple Warrant CSV', data=csv_multi, file_name='multiple_warrant.csv', mime='text/csv')
 
 def main() -> None:
     """Fungsi utama untuk menjalankan aplikasi Streamlit."""
