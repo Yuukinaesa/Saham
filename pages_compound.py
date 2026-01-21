@@ -24,7 +24,7 @@ def compound_interest_page() -> None:
     with col1:
         st.markdown("""
         <div style='margin-bottom: 16px;'>
-            <h3 style='color: #1a1a1a; margin-bottom: 12px;'>Input Investasi</h3>
+            <h3 style='color: var(--text-color); margin-bottom: 12px;'>Input Investasi</h3>
         </div>
         """, unsafe_allow_html=True)
         firstm = st.number_input('💰 Masukkan nilai awal investasi', step=1000000, format="%d", value=1000000)
@@ -39,33 +39,53 @@ def compound_interest_page() -> None:
                     st.error("Silakan masukkan nilai investasi awal dan tingkat bunga untuk menghitung compound interest")
                     return
                 df = calculate_compound_interest(firstm, rate, years, additional_investment)
-                df['Amount'] = df['Amount'].apply(lambda x: format_rupiah(x))
+                df_display = df.copy()
+                df_display['Amount'] = df_display['Amount'].apply(lambda x: format_rupiah(x))
                 st.markdown("""
                 <div style='margin-bottom: 16px;'>
-                    <h3 style='color: #1a1a1a; margin-bottom: 5px; font-size: 16px;'>📊 Hasil perhitungan bunga berbunga</h3>
+                    <h3 style='color: var(--text-color); margin-bottom: 5px; font-size: 16px;'>📊 Hasil perhitungan bunga berbunga</h3>
                 </div>
                 """, unsafe_allow_html=True)
                 total_investment = firstm + (additional_investment * int(years * 12))
-                final_amount = df['Amount'].iloc[-1]
+                final_amount = df_display['Amount'].iloc[-1]
                 st.markdown(f"""
-                <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
-                    <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>💰 Total Investasi</h4>
-                    <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Modal Awal: {format_rupiah(firstm)}</p>
-                    <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Investasi Bulanan: {format_rupiah(additional_investment)}</p>
-                    <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Total Investasi: {format_rupiah(total_investment)}</p>
-                    <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Total Akhir: {final_amount}</p>
-                </div>
-                """, unsafe_allow_html=True)
+<div class='premium-card' style='border-top: 5px solid #2563eb;'>
+<h4 style='color: var(--text-color); margin: 0 0 20px 0; font-size: 1.25rem; font-weight: 700; text-align: center;'>📊 Proyeksi Kekayaan</h4>
+<div style='text-align: center; margin-bottom: 24px;'>
+<p style='color: var(--text-color); opacity: 0.8; margin: 0; font-weight: 500; font-size: 0.9rem;'>Nilai Akhir Portfolio</p>
+<h2 style='color: #3b82f6; margin: 8px 0; font-size: 2.25rem; font-weight: 800;'>
+{final_amount}
+</h2>
+<span style='background-color: rgba(37, 99, 235, 0.2); color: #3b82f6; padding: 4px 12px; border-radius: 9999px; font-weight: 600; font-size: 0.85rem;'>
+{years} Tahun
+</span>
+</div>
+<div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; text-align: center; background-color: rgba(128, 128, 128, 0.1); padding: 16px; border-radius: 8px;'>
+<div>
+<div style='font-size: 0.8rem; color: var(--text-color); opacity: 0.8; margin-bottom: 4px;'>Modal Awal</div>
+<div style='font-weight: 600; color: var(--text-color);'>{format_rupiah(firstm)}</div>
+</div>
+<div>
+<div style='font-size: 0.8rem; color: var(--text-color); opacity: 0.8; margin-bottom: 4px;'>Investasi Bulanan</div>
+<div style='font-weight: 600; color: var(--text-color);'>{format_rupiah(additional_investment)}</div>
+</div>
+<div>
+<div style='font-size: 0.8rem; color: var(--text-color); opacity: 0.8; margin-bottom: 4px;'>Total Setor</div>
+<div style='font-weight: 600; color: var(--text-color);'>{format_rupiah(total_investment)}</div>
+</div>
+</div>
+</div>
+""", unsafe_allow_html=True)
                 with st.expander('Tampilkan Data', expanded=True):
-                    st.dataframe(df.set_index(df.index + 1), use_container_width=True, height=400)
+                    st.dataframe(df_display.set_index(df_display.index + 1), width='stretch', height=400)
                     df_download = df.copy()
                     df_download['Amount'] = df_download['Amount'].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
                     csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
                     st.download_button(label="📥 Download as CSV", data=csv, file_name="compound_interest.csv", mime="text/csv")
                 for year_num in range(1, int(years) + 1):
-                    yearly_data = df[df['Year'] == year_num]
+                    yearly_data = df_display[df_display['Year'] == year_num]
                     with st.expander(f'📅 Tahun {year_num}', expanded=False):
-                        st.dataframe(yearly_data[['Month', 'Amount']].set_index(yearly_data.index + 1), use_container_width=True)
+                        st.dataframe(yearly_data[['Month', 'Amount']].set_index(yearly_data.index + 1), width='stretch')
             except Exception:
                 st.error("Silakan masukkan nilai investasi awal dan tingkat bunga untuk menghitung compound interest")
 

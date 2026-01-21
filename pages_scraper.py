@@ -1,9 +1,10 @@
-import time
 import pandas as pd
 import streamlit as st
+from state_manager import save_config
 
 from config import DEFAULT_SYMBOLS
 from utils import (
+
     sanitize_stock_symbol,
     fetch_stock_data,
     apply_format_values,
@@ -20,9 +21,13 @@ def stock_scraper_page() -> None:
 
     col1, col2 = st.columns(2, gap="small")
     with col1:
-        symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', DEFAULT_SYMBOLS)
+        if 'scraper_symbols' not in st.session_state:
+            st.session_state['scraper_symbols'] = DEFAULT_SYMBOLS
+        symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', value=st.session_state['scraper_symbols'], key='scraper_symbols', on_change=save_config)
     with col2:
-        modal_rupiah = st.number_input("Masukkan modal dalam Rupiah", step=1000000, format="%d", min_value=0, value=1000000)
+        if 'scraper_modal' not in st.session_state:
+            st.session_state['scraper_modal'] = 1000000
+        modal_rupiah = st.number_input("Masukkan modal dalam Rupiah", step=1000000, format="%d", min_value=0, value=st.session_state['scraper_modal'], key='scraper_modal', on_change=save_config)
 
     if st.button('Ambil Data', key='fetch_data'):
         with st.spinner('Menganalisis saham...'):
@@ -98,51 +103,54 @@ def stock_scraper_page() -> None:
                     'Modal': dash_or(lambda x: format_rupiah(x))
                 }
 
-                with st.expander("Tampilkan Data Statistik", expanded=True):
-                    df_display = df[df['Current Price'] > 0].copy()
-                    df_display = df_display.reset_index(drop=True)
-                    # Urutan kolom sesuai permintaan
-                    display_columns = [
-                        'Symbol', 'Current Price', 'Price/Book (PBVR)', 'Trailing P/E (PER)',
-                        'Total Debt/Equity (mrq) (DER)', 'Return on Equity (%) (ROE)',
-                        'Diluted EPS (ttm) (EPS)', 'Forward Annual Dividend Rate (DPS)',
-                        'Forward Annual Dividend Yield (%)', 'Jumlah Saham', 'Jumlah Lot',
-                        'Dividen', 'Modal'
-                    ]
-                    available_columns = [c for c in display_columns if c in df_display.columns]
-                    df_display = df_display[available_columns]
+                # Removed Expander to avoid potential rendering issues
+                df_display = df[df['Current Price'] > 0].copy()
+                df_display = df_display.reset_index(drop=True)
+                # Urutan kolom sesuai permintaan
+                display_columns = [
+                    'Symbol', 'Current Price', 'Price/Book (PBVR)', 'Trailing P/E (PER)',
+                    'Total Debt/Equity (mrq) (DER)', 'Return on Equity (%) (ROE)',
+                    'Diluted EPS (ttm) (EPS)', 'Forward Annual Dividend Rate (DPS)',
+                    'Forward Annual Dividend Yield (%)', 'Jumlah Saham', 'Jumlah Lot',
+                    'Dividen', 'Modal'
+                ]
+                available_columns = [c for c in display_columns if c in df_display.columns]
+                df_display = df_display[available_columns]
+                
+                if df_display.empty:
+                    st.warning("Data saham ditemukan tetapi tidak memenuhi kriteria filter (Harga > 0) atau kolom data kosong.")
+                else:
                     df_display.index = df_display.index + 1
-                    table_height = min(400, len(df_display) * 40 + 50)
-                    df_view = apply_format_values(df_display, format_dict)
-                    st.dataframe(
-                        df_view,
-                        use_container_width=True,
-                        height=table_height,
-                        hide_index=True
-                    )
+                    st.success(f"Berhasil mengambil data: {len(df_display)} saham.")
+                
+                # Simplified Dataframe Rendering
+                df_view = apply_format_values(df_display, format_dict)
+                st.dataframe(
+                    df_view,
+                    width='stretch',
+                    hide_index=True
+                )
 
-                    df_download = df_display.copy()
-                    for col in df_download.columns:
-                        if col in ['Current Price', 'Forward Annual Dividend Rate (DPS)', 'Dividen', 'Modal']:
-                            df_download[col] = df_download[col].apply(lambda x: '-' if (pd.isna(x) or x == 0) else format_csv_indonesia(x, 0))
-                        elif col in ['Price/Book (PBVR)', 'Trailing P/E (PER)', 'Total Debt/Equity (mrq) (DER)']:
-                            df_download[col] = df_download[col].apply(lambda x: '-' if (pd.isna(x) or x == 0) else format_csv_indonesia(x, 2))
-                        elif col in ['Return on Equity (%) (ROE)', 'Forward Annual Dividend Yield (%)']:
-                            df_download[col] = df_download[col].apply(lambda x: '-' if (pd.isna(x) or x == 0) else format_csv_indonesia(x, 2))
-                        elif col in ['Diluted EPS (ttm) (EPS)']:
-                            df_download[col] = df_download[col].apply(lambda x: '-' if (pd.isna(x) or x == 0) else format_csv_indonesia(x, 0))
+                df_download = df_display.copy()
+                for col in df_download.columns:
+                    if col in ['Current Price', 'Forward Annual Dividend Rate (DPS)', 'Dividen', 'Modal']:
+                        df_download[col] = df_download[col].apply(lambda x: '-' if (pd.isna(x) or x == 0) else format_csv_indonesia(x, 0))
+                    elif col in ['Price/Book (PBVR)', 'Trailing P/E (PER)', 'Total Debt/Equity (mrq) (DER)']:
+                        df_download[col] = df_download[col].apply(lambda x: '-' if (pd.isna(x) or x == 0) else format_csv_indonesia(x, 2))
+                    elif col in ['Return on Equity (%) (ROE)', 'Forward Annual Dividend Yield (%)']:
+                        df_download[col] = df_download[col].apply(lambda x: '-' if (pd.isna(x) or x == 0) else format_csv_indonesia(x, 2))
+                    elif col in ['Diluted EPS (ttm) (EPS)']:
+                        df_download[col] = df_download[col].apply(lambda x: '-' if (pd.isna(x) or x == 0) else format_csv_indonesia(x, 0))
 
-                    csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
-                    st.download_button(
-                        label="📥 Download as CSV",
-                        data=csv,
-                        file_name="scraper_saham.csv",
-                        mime="text/csv"
-                    )
+                csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+                st.download_button(
+                    label="📥 Download as CSV",
+                    data=csv,
+                    file_name="scraper_saham.csv",
+                    mime="text/csv",
+                    key="download_scraper_csv"
+                )
 
                 # Debug/raw dihapus agar UI sederhana
             except Exception as e:
                 st.error(f"Terjadi kesalahan: {str(e)}")
-
-
-

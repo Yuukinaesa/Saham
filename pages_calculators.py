@@ -77,11 +77,11 @@ def display_fraksi_harga_table() -> None:
 def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
     with st.expander("📊 Tabel Fraksi Harga", expanded=False):
         st.markdown("""
-        <h4 style='color: #1a1a1a; margin: 0;'>Tabel Fraksi Harga IDX</h4>
+        <h4 style='color: var(--text-color); margin: 0;'>Tabel Fraksi Harga IDX</h4>
         """, unsafe_allow_html=True)
         display_fraksi_harga_table()
         st.markdown("""
-        <p style='margin: 8px 0 0 0; font-size: 13px; color: #6b7280;'>
+        <p style='margin: 8px 0 0 0; font-size: 13px; color: var(--text-color); opacity: 0.8;'>
             <i>Catatan: Fraksi harga adalah selisih harga minimum antara dua transaksi saham.</i>
         </p>
         """, unsafe_allow_html=True)
@@ -105,9 +105,9 @@ def single_stock_calculator(title: str, fee_beli: float, fee_jual: float) -> Non
         harga_beli = st.number_input("Harga Beli (per saham):", step=1000.0, format="%0.0f", value=1000.0)
         harga_jual = st.number_input("Harga Jual (per saham):", step=1000.0, format="%0.0f", value=2000.0)
         st.markdown(f"""
-        <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
-            <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>💸 Fee Platform</h4>
-            <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Fee Beli: {fee_beli*100:.2f}% | Fee Jual: {fee_jual*100:.2f}%</p>
+        <div style='margin-bottom: 16px; background-color: rgba(37, 99, 235, 0.1); padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
+            <h4 style='color: var(--text-color); margin: 0; font-size: 16px;'>💸 Fee Platform</h4>
+            <p style='margin: 4px 0 0 0; color: var(--text-color); opacity: 0.9; font-size: 14px;'>Fee Beli: {fee_beli*100:.2f}% | Fee Jual: {fee_jual*100:.2f}%</p>
         </div>
         """, unsafe_allow_html=True)
         include_fee_beli = st.checkbox("Masukkan Fee Beli", value=True)
@@ -124,28 +124,99 @@ def single_stock_calculator(title: str, fee_beli: float, fee_jual: float) -> Non
                 total_beli, total_jual, profit_loss, profit_loss_percentage = calculate_profit_loss(
                     jumlah_lot, harga_beli, harga_jual, fee_beli_final, fee_jual_final
                 )
-                st.markdown(
-                    f"""
-                    <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 16px 12px 16px 20px; border-radius: 8px; border-left: 4px solid #2563eb;'>
-                        <h4 style='color: #1a1a1a; margin: 0 0 8px 0; font-size: 16px;'>📊 Hasil Perhitungan</h4>
-                        <p style='margin: 0; color: #6b7280; font-size: 15px;'>
-                            Total Beli: {format_rupiah(total_beli)}<br>
-                            Total Jual: {format_rupiah(total_jual)}<br>
-                            <span style='color:{"#4CA16B" if profit_loss > 0 else ("#AD3E3E" if profit_loss < 0 else "#423D3D")}; font-weight:bold;'>
-                                Profit/Loss: {format_rupiah(profit_loss)}<br>
-                                Profit/Loss Percentage: {format_percent(profit_loss_percentage, 2)}
-                            </span>
-                        </p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                
+                # Determine color class and background based on profit/loss
+                is_profit = profit_loss > 0
+                is_loss = profit_loss < 0
+                
+                if is_profit:
+                    card_border = "#10b981"
+                    # Brighter text for dark mode visibility
+                    text_color = "#10b981" 
+                    # Transparent background
+                    bg_badge = "rgba(16, 185, 129, 0.2)"
+                elif is_loss:
+                    card_border = "#ef4444"
+                    text_color = "#ef4444"
+                    bg_badge = "rgba(239, 68, 68, 0.2)"
+                else:
+                    card_border = "#6b7280"
+                    text_color = "var(--text-color)"
+                    bg_badge = "rgba(128, 128, 128, 0.1)"
+
+                # Calculate Fee Amounts
+                jumlah_saham = jumlah_lot * 100
+                bs_fee_beli = (jumlah_saham * harga_beli) * fee_beli_final
+                bs_fee_jual = (jumlah_saham * harga_jual) * fee_jual_final
+                total_fee_transaksi = bs_fee_beli + bs_fee_jual
+
+                # Dividend Calculations
+                dividend_html = ""
                 if include_dividend and dividen_per_saham > 0:
-                    jumlah_saham = jumlah_lot * 100
                     total_dividen = jumlah_saham * dividen_per_saham
                     dividend_yield = (dividen_per_saham / harga_beli) * 100 if harga_beli != 0 else 0
-                    st.write(f"Total Dividen: {format_rupiah(total_dividen)}")
-                    st.write(f"Dividend Yield: {format_percent(dividend_yield, 2)}")
+                    dividend_html = f"""
+<div style='margin-top: 16px; padding-top: 16px; border-top: 1px dashed rgba(128, 128, 128, 0.2);'>
+<div style='display: grid; grid-template-columns: 1fr 1fr; gap: 16px;'>
+<div>
+<p style='margin: 0; color: var(--text-color); opacity: 0.8; font-size: 0.85rem; font-weight: 500;'>Total Dividen</p>
+<p style='margin: 4px 0 0 0; color: #059669; font-size: 1.1rem; font-weight: 600;'>+{format_rupiah(total_dividen)}</p>
+</div>
+<div>
+<p style='margin: 0; color: var(--text-color); opacity: 0.8; font-size: 0.85rem; font-weight: 500;'>Dividend Yield</p>
+<p style='margin: 4px 0 0 0; color: #059669; font-size: 1.1rem; font-weight: 600;'>{format_percent(dividend_yield, 2)}</p>
+</div>
+</div>
+</div>
+"""
+
+                st.markdown(
+                    f"""
+<div class='premium-card' style='border-left: 5px solid {card_border};'>
+<div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 16px;'>
+<h4 style='color: var(--text-color); margin: 0; font-size: 1.15rem; font-weight: 700;'>📊 Hasil Transaksi</h4>
+<span style='background-color: {bg_badge}; color: {text_color}; padding: 4px 12px; border-radius: 9999px; font-weight: 600; font-size: 0.85rem;'>
+{format_percent(profit_loss_percentage, 2)}
+</span>
+</div>
+<div style='display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;'>
+<div>
+<p style='margin: 0; color: var(--text-color); opacity: 0.8; font-size: 0.85rem; font-weight: 500;'>Total Beli (All-in)</p>
+<p style='margin: 4px 0 0 0; color: var(--text-color); font-size: 1.1rem; font-weight: 600;'>{format_rupiah(total_beli)}</p>
+</div>
+<div>
+<p style='margin: 0; color: var(--text-color); opacity: 0.8; font-size: 0.85rem; font-weight: 500;'>Total Jual (Net)</p>
+<p style='margin: 4px 0 0 0; color: var(--text-color); font-size: 1.1rem; font-weight: 600;'>{format_rupiah(total_jual)}</p>
+</div>
+</div>
+<div style='margin-bottom: 16px; padding: 12px; background-color: rgba(128, 128, 128, 0.1); border-radius: 8px;'>
+<p style='margin: 0 0 8px 0; color: var(--text-color); font-weight: 600; font-size: 0.9rem;'>Rincian Biaya (Fee)</p>
+<div style='display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; font-size: 0.85rem;'>
+<div>
+<p style='margin: 0; color: var(--text-color); opacity: 0.8; font-size: 0.75rem;'>Fee Beli</p>
+<p style='margin: 0; color: var(--text-color); font-weight: 600;'>{format_rupiah(bs_fee_beli)}</p>
+</div>
+<div>
+<p style='margin: 0; color: var(--text-color); opacity: 0.8; font-size: 0.75rem;'>Fee Jual</p>
+<p style='margin: 0; color: var(--text-color); font-weight: 600;'>{format_rupiah(bs_fee_jual)}</p>
+</div>
+<div>
+<p style='margin: 0; color: var(--text-color); opacity: 0.8; font-size: 0.75rem;'>Total Fee</p>
+<p style='margin: 0; color: var(--text-color); font-weight: 600;'>{format_rupiah(total_fee_transaksi)}</p>
+</div>
+</div>
+</div>
+<div style='background-color: {bg_badge}; padding: 16px; border-radius: 8px;'>
+<div style='display: flex; justify-content: space-between; align-items: center;'>
+<span style='color: {text_color}; font-weight: 600;'>Net Profit / Loss</span>
+<span style='color: {text_color}; font-weight: 700; font-size: 1.25rem;'>{format_rupiah(profit_loss)}</span>
+</div>
+</div>
+{dividend_html}
+</div>
+""",
+                    unsafe_allow_html=True,
+                )
 
                 # Download hasil single kalkulator sebagai CSV (format Indonesia)
                 df_download = pd.DataFrame([
@@ -192,30 +263,46 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
             'fee_jual': fee_jual if include_fee_jual else 0
         })
     st.markdown(f"""
-    <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 12px 8px 12px 16px; border-radius: 6px; border-left: 3px solid #2563eb;'>
-        <h4 style='color: #1a1a1a; margin: 0; font-size: 16px;'>💸 Fee Platform</h4>
-        <p style='margin: 4px 0 0 0; color: #6b7280; font-size: 14px;'>Fee Beli: {fee_beli*100:.2f}% | Fee Jual: {fee_jual*100:.2f}%</p>
+    <div style='margin-bottom: 16px; background-color: rgba(37, 99, 235, 0.1); padding: 12px 16px; border-radius: 8px; border-left: 4px solid #2563eb;'>
+        <h4 style='color: var(--text-color); margin: 0 0 4px 0; font-size: 1rem; font-weight: 600;'>💸 Fee Platform</h4>
+        <p style='margin: 0; color: var(--text-color); opacity: 0.9; font-size: 0.9rem;'>Fee Beli: <strong>{fee_beli*100:.2f}%</strong> | Fee Jual: <strong>{fee_jual*100:.2f}%</strong></p>
     </div>
     """, unsafe_allow_html=True)
     if st.button("Hitung Multiple Saham", key="calculate_multiple"):
         with st.spinner('Menghitung multiple saham...'):
             result = calculate_multiple_stocks_profit_loss(stocks_data)
+            # Multiple Stocks Layout
+            is_profitable = result['total_profit_loss'] > 0
+            card_border = "#10b981" if is_profitable else "#ef4444"
+            header_text_color = "#047857" if is_profitable else "#b91c1c"
+            
             st.markdown(
                 f"""
-                <div style='margin-bottom: 16px; background-color: #f8f9fa; padding: 16px 12px 16px 20px; border-radius: 8px; border-left: 4px solid #2563eb;'>
-                    <h4 style='color: #1a1a1a; margin: 0 0 8px 0; font-size: 16px;'>📊 Hasil Total Portfolio</h4>
-                    <p style='margin: 0; color: #6b7280; font-size: 15px;'>
-                        Total Investasi: {format_rupiah(result['total_investment'])}<br>
-                        Total Proceeds: {format_rupiah(result['total_proceeds'])}<br>
-                        Total Fee Beli: {format_rupiah(result['total_fee_beli'])}<br>
-                        Total Fee Jual: {format_rupiah(result['total_fee_jual'])}<br>
-                        <span style='color:{"#4CA16B" if result['total_profit_loss'] > 0 else ("#AD3E3E" if result['total_profit_loss'] < 0 else "#423D3D")}; font-weight:bold;'>
-                            Total Profit/Loss: {format_rupiah(result['total_profit_loss'])}<br>
-                            Total Profit/Loss Percentage: {format_percent(result['total_profit_loss_percentage'], 2)}
-                        </span>
-                    </p>
-                </div>
-                """,
+<div class='premium-card' style='border-top: 5px solid {card_border}; border-left: 1px solid rgba(128, 128, 128, 0.1);'>
+<h4 style='color: var(--text-color); margin: 0 0 20px 0; font-size: 1.25rem; font-weight: 700; text-align: center;'>📊 Ringkasan Portfolio</h4>
+<div style='display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 24px;'>
+<div style='text-align: center; padding: 12px; background-color: rgba(128, 128, 128, 0.1); border-radius: 8px;'>
+<p style='margin: 0; color: var(--text-color); opacity: 0.8; font-size: 0.85rem; font-weight: 500;'>Total Investasi</p>
+<p style='margin: 4px 0 0 0; color: var(--text-color); font-size: 1.1rem; font-weight: 600;'>{format_rupiah(result['total_investment'])}</p>
+</div>
+<div style='text-align: center; padding: 12px; background-color: rgba(128, 128, 128, 0.1); border-radius: 8px;'>
+<p style='margin: 0; color: var(--text-color); opacity: 0.8; font-size: 0.85rem; font-weight: 500;'>Total Proceeds</p>
+<p style='margin: 4px 0 0 0; color: var(--text-color); font-size: 1.1rem; font-weight: 600;'>{format_rupiah(result['total_proceeds'])}</p>
+</div>
+</div>
+<div style='text-align: center; padding: 20px; border-radius: 8px; background-color: {"rgba(16, 185, 129, 0.1)" if is_profitable else "rgba(239, 68, 68, 0.1)"};'>
+<p style='margin: 0; color: {header_text_color}; font-size: 0.9rem; font-weight: 600;'>Total Profit / Loss</p>
+<h2 style='margin: 8px 0 0 0; color: {header_text_color}; font-size: 2rem; font-weight: 800;'>{format_rupiah(result['total_profit_loss'])}</h2>
+<span style='display: inline-block; margin-top: 8px; padding: 4px 12px; border-radius: 9999px; background-color: rgba(128, 128, 128, 0.1); color: {header_text_color}; font-weight: 700; font-size: 0.9rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05);'>
+{format_percent(result['total_profit_loss_percentage'], 2)}
+</span>
+</div>
+<div style='margin-top: 20px; border-top: 1px solid rgba(128, 128, 128, 0.2); padding-top: 16px; font-size: 0.85rem; color: var(--text-color); opacity: 0.8; display: flex; justify-content: space-between;'>
+<span>Total Fee Beli: {format_rupiah(result['total_fee_beli'])}</span>
+<span>Total Fee Jual: {format_rupiah(result['total_fee_jual'])}</span>
+</div>
+</div>
+""",
                 unsafe_allow_html=True,
             )
             st.markdown("### Detail Per Saham")
@@ -232,7 +319,7 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
                     'Profit/Loss %': format_percent(stock['profit_loss_percentage'], 2)
                 })
             df_detail = pd.DataFrame(detail_data)
-            st.dataframe(df_detail, use_container_width=True, hide_index=True)
+            st.dataframe(df_detail, width='stretch', hide_index=True)
             df_download = df_detail.copy()
             for col in df_download.columns:
                 if col in ['Harga Beli', 'Harga Jual', 'Total Beli', 'Total Jual', 'Profit/Loss']:

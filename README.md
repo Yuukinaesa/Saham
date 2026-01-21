@@ -41,6 +41,12 @@ A modern, professional web application for Indonesian stock investors. Saham IDX
 - **Simplified Interface**: Clean, focused input fields
 - **Stockbit Format**: Results match Stockbit mobile app display
 
+### 💾 Backup & Restore
+- **Save Configuration**: Download your settings and data to a secure JSON file
+- **Restoration**: Restore your session state instantly from a backup file
+- **Migration**: Easily move your configuration between devices
+- **Progress Tracking**: Real-time progress bar during restoration
+
 ---
 
 ## 🚀 Quickstart

@@ -1,1 +1,6 @@
 backup.py
+__pycache__/
+*.pyc
+.streamlit/
+.devcontainer/
+.env

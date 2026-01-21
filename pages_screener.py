@@ -92,12 +92,14 @@ def stock_screener_page() -> None:
 
                 st.markdown(
                     """
-                    <div style='margin: 16px 0;'>
-                        <h3 style='color: #1a1a1a; margin: 0;'>Hasil Screener</h3>
-                    </div>
-                    """,
+<div style='margin: 16px 0 16px 0;'>
+<h3 style='margin: 0; color: var(--text-color);'>Hasil Screener</h3>
+</div>
+""",
                     unsafe_allow_html=True,
                 )
+                
+                st.success(f"Berhasil menyaring data: {len(df_display)} saham.")
 
                 def dash_or(fn):
                     return (lambda v: '—' if (pd.isna(v) or v == 0) else fn(v))
@@ -132,7 +134,7 @@ def stock_screener_page() -> None:
                 format_dict = {k: v for k, v in fmt_candidates.items() if k in df_display.columns}
 
                 df_view = apply_format_values(df_display, format_dict)
-                st.dataframe(df_view, use_container_width=True, hide_index=True)
+                st.dataframe(df_view, width='stretch', hide_index=True)
 
                 # Download CSV dengan struktur sesuai tabel screener
                 df_download = df_display.copy()
@@ -177,6 +179,6 @@ def stock_screener_page() -> None:
             'Return on Equity (%) (ROE)': dash_or(lambda x: format_percent(x, 2)),
         }
         format_dict = {k: v for k, v in fmt_candidates.items() if k in df_display.columns}
-        st.dataframe(apply_format_values(df_display, format_dict), use_container_width=True, hide_index=True)
+        st.dataframe(apply_format_values(df_display, format_dict), width='stretch', hide_index=True)
 
 

@@ -1,5 +1,6 @@
 import re
 import time
+import math
 from typing import Dict, List, Tuple
 
 import pandas as pd
@@ -7,6 +8,57 @@ import streamlit as st
 import yfinance as yf
 import numpy as np
 import requests
+
+# Financial Logic Constants
+def get_tick_size(price: float) -> int:
+    """
+    Get BEI Tick Size (Fraksi Harga) based on price.
+    """
+    if price < 200:
+        return 1
+    elif 200 <= price < 500:
+        return 2
+    elif 500 <= price < 2000:
+        return 5
+    elif 2000 <= price < 5000:
+        return 10
+    else:
+        return 25
+
+def get_ara_arb_percentage(price: float, board: str = 'regular') -> float:
+    """
+    Get ARA/ARB Percentage limit based on price and board type.
+    """
+    if board == 'acceleration':
+        if price <= 10:
+            return 0 # Special case handled by absolutes
+        return 0.10 # 10%
+        
+    # Regular Board Rules (Adjusted for recent BEI normalization)
+    # Note: Using ranges provided in original code which likely reflect effective rules
+    if price > 5000:
+        return 0.20
+    elif 200 <= price <= 5000:
+        return 0.25
+    else: # 50 - 200
+        return 0.35
+
+
+
+def round_price_to_tick(price: float, tick: int, mode: str = 'floor') -> int:
+    """
+    Round price to nearest tick.
+    Mode 'floor' -> Round down to nearest tick (Safe for ARA Max)
+    Mode 'ceil' -> Round up to nearest tick (Safe for ARB Min)
+    Mode 'nearest' -> Standard rounding
+    """
+    if mode == 'floor':
+        return math.floor(price / tick) * tick
+    elif mode == 'ceil':
+        return math.ceil(price / tick) * tick
+    else:
+        return round(price / tick) * tick
+
 
 
 def apply_format_values(df: pd.DataFrame, formatters: Dict[str, callable]) -> pd.DataFrame:
@@ -100,6 +152,24 @@ def format_ratio(value: float) -> str:
         return "0,00"
 
 
+def format_large_number(value: float) -> str:
+    try:
+        value = float(value) if not isinstance(value, (int, float)) else value
+        if pd.isna(value) or value == 0:
+            return "0"
+        if abs(value) >= 1_000_000_000_000:
+            return f"{value / 1_000_000_000_000:.2f} T"
+        elif abs(value) >= 1_000_000_000:
+            return f"{value / 1_000_000_000:.2f} M"
+        elif abs(value) >= 1_000_000:
+            return f"{value / 1_000_000:.2f} Jt"
+        elif abs(value) >= 1_000:
+            return f"{value / 1_000:.2f} K"
+        else:
+            return f"{value:,.0f}"
+    except (ValueError, TypeError):
+        return "0"
+@st.cache_data(ttl=300, show_spinner=False)
 def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
     data = {}
     for symbol in symbols:
@@ -151,6 +221,7 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
 # StockAnalysis helpers removed; we use Yahoo Finance only
 
 
+@st.cache_data(ttl=300, show_spinner=False)
 def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
     """Fetch richer set of metrics for screener (modeled from SahamBackup).
 
