@@ -3,7 +3,8 @@ import pandas as pd
 import streamlit as st
 
 from config import PLATFORM_CONFIG, FRACSI_HARGA_DATA
-from utils import format_rupiah, format_percent, format_csv_indonesia
+from utils import format_rupiah, format_percent, format_csv_indonesia, get_tick_size, get_ara_arb_percentage, round_price_to_tick
+import math
 
 
 def calculate_profit_loss(jumlah_lot: int, harga_beli: float, harga_jual: float, fee_beli: float, fee_jual: float) -> Tuple[float, float, float, float]:
@@ -86,11 +87,122 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
         </p>
         """, unsafe_allow_html=True)
 
-    calculator_mode = st.radio("Pilih Mode Kalkulator", ["Saham", "Multiple Saham"], horizontal=True)
+    calculator_mode = st.radio("Pilih Mode Kalkulator", ["Saham", "Multiple Saham", "HAKA vs Limit"], horizontal=True)
     if calculator_mode == "Saham":
         single_stock_calculator(title, fee_beli, fee_jual)
+    elif calculator_mode == "HAKA vs Limit":
+        haka_vs_limit_calculator(title, fee_beli)
     else:
         multiple_stocks_calculator(title, fee_beli, fee_jual)
+
+
+def haka_vs_limit_calculator(title: str, fee_beli: float) -> None:
+    st.markdown('<div class="section-title">⚡ HAKA (Market) vs Limit Order</div>', unsafe_allow_html=True)
+    st.info("Bandingkan berapa lot yang didapat jika ANTRE (Limit Order) vs HAKA (Market Order). Market order menggunakan harga ARA sebagai basis perhitungan agar order tidak rejected.")
+
+    col_config, col_input = st.columns([1, 1], gap="medium")
+    
+    with col_config:
+        if title == "Custom":
+            st.markdown('**Pengaturan Fee**')
+            fee_beli = st.number_input("Fee Beli (%)", min_value=0.0, value=0.15, step=0.01) / 100
+        
+        st.markdown('**Kriteria Saham**')
+        is_acceleration = st.checkbox("Saham Papan Akselerasi", value=False)
+        board_type = 'acceleration' if is_acceleration else 'regular'
+
+    with col_input:
+        st.markdown('**Input Modal & Harga**')
+        modal = st.number_input("Total Modal (Buying Power)", min_value=100000, step=100000, value=1000000)
+        harga_input = st.number_input("Harga Saham Saat Ini (Offer)", min_value=50, step=1, value=200)
+
+    # Calculate ARA logic locally to determine safe HAKA price
+    if is_acceleration and harga_input <= 10:
+        harga_ara = harga_input + 1
+    else:
+        pct = get_ara_arb_percentage(harga_input, board_type)
+        limit_price = harga_input * (1 + pct)
+        tick = get_tick_size(limit_price)
+        harga_ara = round_price_to_tick(limit_price, tick, 'floor')
+        
+        # Ensure ARA is at least 1 tick above if price didn't move
+        if harga_ara <= harga_input:
+             harga_ara = harga_input + get_tick_size(harga_input)
+
+    if st.button("Hitung Perbandingan", type="primary", use_container_width=True):
+        # 1. Limit Order Calculation
+        # Formula: Lot = Modal / (Price * 100 * (1 + Fee))
+        harga_per_lot_limit = harga_input * 100 * (1 + fee_beli)
+        max_lot_limit = math.floor(modal / harga_per_lot_limit)
+        total_modal_limit = max_lot_limit * harga_per_lot_limit
+        sisa_modal_limit = modal - total_modal_limit
+
+        # 2. HAKA (Market Order) Calculation
+        # Uses ARA price for safety margin
+        harga_per_lot_ara = harga_ara * 100 * (1 + fee_beli)
+        max_lot_haka = math.floor(modal / harga_per_lot_ara)
+        
+        # Actual cost if executed at ARA (Worst case)
+        total_modal_haka_ara = max_lot_haka * harga_per_lot_ara
+        
+        # Actual cost if executed at Current Price (Best case, but with reduced lot count)
+        realized_cost_haka = max_lot_haka * harga_per_lot_limit
+        sisa_modal_haka = modal - realized_cost_haka
+
+        st.markdown("---")
+        
+        col_res1, col_res2 = st.columns(2, gap="large")
+        
+        with col_res1:
+            st.markdown(f"""
+            <div class='premium-card' style='border-left: 4px solid #3b82f6;'>
+                <h4 style="margin:0; color:#3b82f6;">🟢 Limit Order</h4>
+                <p style="font-size:0.85rem; opacity:0.8;">Antre di harga {format_rupiah(harga_input)}</p>
+                <div style="margin-top:10px;">
+                    <div style="font-size:2rem; font-weight:700;">{max_lot_limit:,} <span style="font-size:1rem; font-weight:400;">Lot</span></div>
+                    <div style="font-size:0.9rem; margin-top:5px;">Est. Total: {format_rupiah(total_modal_limit)}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        with col_res2:
+            st.markdown(f"""
+            <div class='premium-card' style='border-left: 4px solid #f59e0b;'>
+                <h4 style="margin:0; color:#f59e0b;">⚡ HAKA (Market Order)</h4>
+                <p style="font-size:0.85rem; opacity:0.8;">Safety Price (ARA): {format_rupiah(harga_ara)}</p>
+                <div style="margin-top:10px;">
+                    <div style="font-size:2rem; font-weight:700;">{max_lot_haka:,} <span style="font-size:1rem; font-weight:400;">Lot</span></div>
+                    <div style="font-size:0.9rem; margin-top:5px;">Est. Total: {format_rupiah(realized_cost_haka)}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        # Comparison
+        diff_lot = max_lot_limit - max_lot_haka
+        
+        st.markdown("### 💡 Insight")
+        if diff_lot > 0:
+            st.warning(f"""
+            **Selisih: {diff_lot} Lot**
+            
+            Jika Anda melakukan **Market Order (HAKA)**, sistem akan menahan modal seolah-olah Anda membeli di harga ARA ({format_rupiah(harga_ara)}).
+            Akibatnya, Anda mendapatkan **{diff_lot} lot lebih sedikit** dibandingkan jika Anda menggunakan Limit Order di harga {harga_input}.
+            
+            Namun, Market Order menjamin order Anda tereksekusi instan (selama antrian jual tersedia), sedangkan Limit Order mungkin perlu menunggu.
+            """)
+        else:
+            st.success("Jumlah lot sama antara Limit dan Market Order untuk modal ini.")
+            
+        st.markdown(f"""
+        <div style="background-color:var(--secondary-background-color); padding:10px; border-radius:8px; font-size:0.85rem; margin-top:10px;">
+            <strong>Rincian Perhitungan:</strong><br>
+            • Modal: {format_rupiah(modal)}<br>
+            • Fee Beli: {fee_beli*100:.2f}%<br>
+            • Harga ARA (Basis HAKA): {format_rupiah(harga_ara)}<br>
+            • Max Lot Limit = Floor({modal} / ({harga_input} × 100 × {1+fee_beli})) = {max_lot_limit}<br>
+            • Max Lot HAKA = Floor({modal} / ({harga_ara} × 100 × {1+fee_beli})) = {max_lot_haka}
+        </div>
+        """, unsafe_allow_html=True)
 
 
 def single_stock_calculator(title: str, fee_beli: float, fee_jual: float) -> None:
