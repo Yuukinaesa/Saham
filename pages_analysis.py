@@ -1035,12 +1035,23 @@ def render_technical(history, symbol):
         pivot_table = pivot_table.rename(columns=month_names)
         
         # Display as a Heatmap-like Dataframe (Styled)
-        st.dataframe(
-            pivot_table.style.format("{:.2%}")
-            .background_gradient(cmap='RdYlGn', vmin=-0.1, vmax=0.1)
-            .highlight_null(color='transparent'),
-            width='stretch'
-        )
+        try:
+            st.dataframe(
+                pivot_table.style.format("{:.2%}")
+                .background_gradient(cmap='RdYlGn', vmin=-0.1, vmax=0.1)
+                .highlight_null(color='transparent'),
+                width='stretch'
+            )
+        except ImportError:
+            # Fallback if matplotlib is missing
+            st.dataframe(
+                pivot_table.style.format("{:.2%}")
+                .highlight_null(color='transparent'),
+                width='stretch'
+            )
+        except Exception:
+             # General fallback
+            st.dataframe(pivot_table, width='stretch')
         
         # Average Seasonality Chart
         avg_seasonality = m_df.groupby('MonthNum')['Return'].mean()

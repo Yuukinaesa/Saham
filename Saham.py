@@ -13,6 +13,8 @@ from pwa_setup import inject_pwa_support
 from pages_backup import backup_page
 from pages_trade_planner import trade_planner_page
 from pages_analysis import analysis_dashboard_page
+from pages_market_overview import market_overview_page
+from pages_technical_tools import technical_tools_page
 from pages_right_issue import right_issue_calculator_page
 from state_manager import load_config
 
@@ -219,6 +221,8 @@ def main() -> None:
                 "Scraper Saham",
                 "Screener Saham",
                 "Kalkulator Saham",
+                "Market Overview",
+                "Technical Tools",
                 "Analisa Lengkap",
                 "Trade Planner",
                 "Compound Interest",
@@ -227,7 +231,7 @@ def main() -> None:
                 "Warrant Calculator",
                 "Backup & Restore"
             ],
-            icons=["graph-up", "search", "calculator", "activity", "clipboard-data", "bookmark", "percent", "briefcase", "ticket-perforated", "cloud-arrow-down-fill"],
+            icons=["graph-up", "search", "calculator", "grid", "tools", "activity", "clipboard-data", "bookmark", "percent", "briefcase", "ticket-perforated", "cloud-arrow-down-fill"],
             menu_icon="cast",
             default_index=0,
             orientation="vertical",
@@ -279,6 +283,10 @@ def main() -> None:
             )
             fee_beli, fee_jual = PLATFORM_CONFIG.get(calculator_submenu, (0, 0))
             calculator_page(calculator_submenu, fee_beli, fee_jual)
+        elif menu_selection == "Market Overview":
+            market_overview_page()
+        elif menu_selection == "Technical Tools":
+            technical_tools_page()
         elif menu_selection == "Analisa Lengkap":
             analysis_dashboard_page()
         elif menu_selection == "Trade Planner":

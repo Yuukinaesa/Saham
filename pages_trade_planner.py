@@ -175,6 +175,110 @@ def trade_planner_page():
                 st.markdown("#### 💰 Proyeksi PnL")
                 st.markdown(f"**Potensi Profit:** <span style='color:#10b981; font-weight:bold;'>{format_rupiah(potential_profit)}</span> (+{stop_loss_pct * rrr:.2f}%)", unsafe_allow_html=True)
                 st.markdown(f"**Potensi Loss:** <span style='color:#ef4444; font-weight:bold;'>{format_rupiah(potential_loss)}</span> (-{stop_loss_pct}%)", unsafe_allow_html=True)
+            
+            # --- PROFESSIONAL METRICS SECTION ---
+            st.markdown("---")
+            st.markdown("#### 🧠 Professional Insight")
+            
+            # --- PROFESSIONAL METRICS SECTION ---
+            st.markdown("---")
+            st.markdown("#### 🧠 Professional Insight")
+            
+            # Calculate Breakeven Win Rate
+            be_winrate = (1 / (1 + rrr)) * 100
+            
+            # SNIPER MODE: Probability Score Calculation
+            # Logic: 
+            # 1. R:R > 2 (+20%)
+            # 2. Risk per Trade < 2% of Capital (+20%)
+            # 3. Stop Loss is tight (< 5%) (+20%)
+            # 4. Winrate required < 40% (+20%)
+            # 5. Modal Cukup (+20%)
+            
+            prob_score = 0
+            sc_details = []
+            
+            if rrr >= 2.0:
+                prob_score += 20
+                sc_details.append("✅ Risk Reward Sehat (>1:2)")
+            else:
+                sc_details.append("⚠️ Risk Reward Kecil")
+                
+            if stop_loss_pct <= 5.0:
+                prob_score += 20
+                sc_details.append("✅ SL Ketat (<5%)")
+            else:
+                 sc_details.append("⚠️ SL Lebar (>5%)")
+            
+            if be_winrate < 40:
+                prob_score += 20
+                sc_details.append("✅ Beban Winrate Rendah")
+            else:
+                sc_details.append("⚠️ Beban Winrate Tinggi")
+
+            if calc_mode == "Hitung Lot dari Resiko (Money Management)":
+                 if risk_per_trade_pct <= 2.0:
+                     prob_score += 20
+                     sc_details.append("✅ Resiko Portfolio Aman (<2%)")
+                 else:
+                     sc_details.append("⚠️ Resiko Portfolio Agresif")
+                 if capital_required <= modal:
+                     prob_score += 20
+                     sc_details.append("✅ Modal Cukup")
+                 else:
+                     sc_details.append("❌ Modal Kurang")
+            else:
+                 # Mode Fixed Capital
+                 if implied_risk_pct <= 5.0:
+                     prob_score += 20
+                     sc_details.append("✅ Resiko per Entry Aman (<5%)")
+                 else:
+                     sc_details.append("⚠️ Resiko per Entry Besar")
+                 prob_score += 20 # Bonus for simplicity
+            
+            # Badge Color
+            if prob_score >= 80:
+                score_color = "#10b981"
+                score_title = "💎 SNIPER SETUP (High Probability)"
+            elif prob_score >= 60:
+                score_color = "#f59e0b"
+                score_title = "⚖️ STANDARD SETUP"
+            else:
+                score_color = "#ef4444"
+                score_title = "💀 HIGH RISK GAMBLE"
+
+            col_pro1, col_pro2, col_pro3 = st.columns(3)
+            with col_pro1:
+                st.markdown(f"""
+                <div style='background-color: var(--secondary-background-color); padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); height: 100%;'>
+                    <div style='font-size: 0.8rem; font-weight: 600; opacity: 0.9; margin-bottom: 4px;'>🎯 Win Rate Wajib (BE)</div>
+                    <div style='font-size: 1.4rem; font-weight: 700; color: #f59e0b;'>{be_winrate:.1f}%</div>
+                    <div style='font-size: 0.7rem; opacity: 0.7; margin-top: 4px;'>
+                        Hanya butuh menang {be_winrate:.1f}% kali untuk impas.
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+            with col_pro2:
+                st.markdown(f"""
+                <div style='background-color: var(--secondary-background-color); padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); height: 100%;'>
+                    <div style='font-size: 0.8rem; font-weight: 600; opacity: 0.9; margin-bottom: 4px;'>📊 Trade Quality Score</div>
+                    <div style='font-size: 1.4rem; font-weight: 700; color: {score_color};'>{prob_score}/100</div>
+                    <div style='font-size: 0.7rem; opacity: 0.7; margin-top: 4px;'>
+                        {score_title}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col_pro3:
+                sc_html = "".join([f"<li style='margin-bottom:2px;'>{d}</li>" for d in sc_details])
+                st.markdown(f"""
+                <div style='background-color: var(--secondary-background-color); padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); height: 100%; font-size: 0.75rem;'>
+                    <ul style='padding-left: 15px; margin: 0;'>
+                        {sc_html}
+                    </ul>
+                </div>
+                """, unsafe_allow_html=True)
                 
         else:
             st.error(f"Gagal mengambil data harga untuk {symbol}. Pastikan kode saham benar.")

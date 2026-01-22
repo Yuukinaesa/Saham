@@ -12,4 +12,12 @@ PLATFORM_CONFIG = {
     "Custom": (0, 0)
 }
 
+LQ45_SYMBOLS = [
+    "ACES", "ADRO", "AKRA", "AMRT", "ANTM", "ARTO", "ASII", "BBCA", "BBNI", "BBRI", 
+    "BBTN", "BMRI", "BRIS", "BRPT", "BUKA", "CPIN", "EMTK", "ESSA", "EXCL", "GGRM", 
+    "GOTO", "HRUM", "ICBP", "INCO", "INDF", "INKP", "INTP", "ITMG", "JPFA", "KLBF", 
+    "MAPI", "MBMA", "MDKA", "MEDC", "MERK", "PGAS", "PTBA", "SCMA", "SIDO", "SMGR", 
+    "SRTG", "TBIG", "TINS", "TLKM", "TOWR", "UNTR", "UNVR"
+]
+
 
