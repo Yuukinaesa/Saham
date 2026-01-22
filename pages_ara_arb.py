@@ -120,7 +120,7 @@ def ara_arb_calculator_page() -> None:
 
     st.markdown("---")
     
-    if st.button('Hitung ARA ARB', type='primary', use_container_width=True):
+    if st.button('Hitung ARA ARB', type='primary', width='stretch'):
         ara_list, arb_list = calculate_ara_arb_sequence(harga_penutupan, is_acceleration, max_steps, arb_mode)
         
         st.markdown("""

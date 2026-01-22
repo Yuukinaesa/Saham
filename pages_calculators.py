@@ -129,7 +129,7 @@ def haka_vs_limit_calculator(title: str, fee_beli: float) -> None:
         if harga_ara <= harga_input:
              harga_ara = harga_input + get_tick_size(harga_input)
 
-    if st.button("Hitung Perbandingan", type="primary", use_container_width=True):
+    if st.button("Hitung Perbandingan", type="primary", width='stretch'):
         # 1. Limit Order Calculation
         # Formula: Lot = Modal / (Price * 100 * (1 + Fee))
         harga_per_lot_limit = harga_input * 100 * (1 + fee_beli)

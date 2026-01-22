@@ -730,7 +730,7 @@ def stock_scraper_page() -> None:
                     
                     st.dataframe(
                         format_dataframe(df_display, format_dict),
-                        use_container_width=True,
+                        width='stretch',
                         height=table_height
                     )
                     
@@ -1000,7 +1000,7 @@ def stock_screener_page() -> None:
                     
                     st.dataframe(
                         format_dataframe(df_screener, format_dict),
-                        use_container_width=True,
+                        width='stretch',
                         height=table_height
                     )
                     
@@ -1255,7 +1255,7 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
                 })
             
             df_detail = pd.DataFrame(detail_data)
-            st.dataframe(df_detail, use_container_width=True, hide_index=True)
+            st.dataframe(df_detail, width='stretch', hide_index=True)
             
             # Download CSV untuk kalkulator saham dengan format Indonesia
             df_download = df_detail.copy()
@@ -1410,7 +1410,7 @@ def compound_interest_page() -> None:
                 with st.expander('Tampilkan Data', expanded=True):
                     st.dataframe(
                         df.set_index(df.index + 1),
-                        use_container_width=True,
+                        width='stretch',
                         height=400
                     )
                     
@@ -1433,7 +1433,7 @@ def compound_interest_page() -> None:
                     with st.expander(f'📅 Tahun {year_num}', expanded=False):
                         st.dataframe(
                             yearly_data[['Month', 'Amount']].set_index(yearly_data.index + 1),
-                            use_container_width=True
+                            width='stretch'
                         )
             except Exception:
                 st.error("Silakan masukkan nilai investasi awal dan tingkat bunga untuk menghitung compound interest")
@@ -1943,7 +1943,7 @@ def warrant_calculator_page() -> None:
         harga_jual_warrant = st.number_input('Harga Jual Warrant', min_value=0, step=1, format="%d", value=47)
         jumlah_lot = st.number_input('Jumlah Lot', step=0.5, format="%.1f", value=3.0)
     
-    if st.button('Hitung Realized Gain', type='primary', use_container_width=True):
+    if st.button('Hitung Realized Gain', type='primary', width='stretch'):
         with st.spinner('Menghitung...'):
             # Hitung total beli dan jual
             harga_beli_warrant = max(0.0, float(harga_beli_warrant))
@@ -2058,7 +2058,7 @@ def warrant_calculator_page() -> None:
             lot = st.number_input(f'Lot #{i+1}', step=0.5, format="%.1f", value=3.0, key=f'w_lot_{i}')
         multiple_rows.append((sym, beli, jual, lot))
 
-    if st.button('Hitung Multiple Warrant', use_container_width=True):
+    if st.button('Hitung Multiple Warrant', width='stretch'):
         with st.spinner('Menghitung...'):
             hasil_rows = []
             total_modal_all = 0.0
@@ -2098,7 +2098,7 @@ def warrant_calculator_page() -> None:
             df_view['Net Amount'] = df_view['Net Amount'].apply(lambda x: format_rupiah(x))
             df_view['Keuntungan'] = df_view['Keuntungan'].apply(lambda x: format_rupiah(x))
             df_view['Persentase %'] = df_view['Persentase %'].apply(lambda x: format_percent(x, 2))
-            st.dataframe(df_view, use_container_width=True, hide_index=True)
+            st.dataframe(df_view, width='stretch', hide_index=True)
 
             # Download CSV format Indonesia dengan ;
             df_download = df_w_multi.copy()

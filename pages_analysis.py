@@ -634,10 +634,10 @@ def render_recommendations(rec_df, history):
             # Display cleanly
             st.dataframe(
                 df_display.set_index('Periode') if 'Periode' in df_display.columns else df_display, 
-                use_container_width=True
+                width='stretch'
             )
         except Exception as e:
-            st.dataframe(rec_df.tail(5), use_container_width=True)
+            st.dataframe(rec_df.tail(5), width='stretch')
     else:
         st.warning("Tidak ada data rekomendasi analis institusi untuk saham ini.")
 
@@ -1009,7 +1009,7 @@ def render_technical(history, symbol):
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)'
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
         else:
             st.line_chart(history['Close'])
             st.info("Install 'plotly' untuk melihat Candlestick chart yang lebih detail.")
@@ -1018,7 +1018,7 @@ def render_technical(history, symbol):
         st.write("📊 Statistik Return Bulanan (Seasonality Real)")
         
         # Calculate Monthly Returns
-        monthly_return = history['Close'].resample('M').ffill().pct_change()
+        monthly_return = history['Close'].resample('ME').ffill().pct_change()
         
         # Create DataFrame for Heatmap
         m_df = monthly_return.to_frame(name='Return')
@@ -1039,7 +1039,7 @@ def render_technical(history, symbol):
             pivot_table.style.format("{:.2%}")
             .background_gradient(cmap='RdYlGn', vmin=-0.1, vmax=0.1)
             .highlight_null(color='transparent'),
-            use_container_width=True
+            width='stretch'
         )
         
         # Average Seasonality Chart
@@ -1254,7 +1254,7 @@ def analysis_dashboard_page():
     with col_search:
         symbol = st.text_input("💎 Masukkan Kode Saham", value="BBRI", label_visibility="collapsed", placeholder="Contoh: BBRI").upper()
     with col_btn:
-        analyze_btn = st.button("🔍 Analisa Sekarang", type="primary", use_container_width=True)
+        analyze_btn = st.button("🔍 Analisa Sekarang", type="primary", width='stretch')
     
     # Session State Management
     if 'analysis_data' not in st.session_state:

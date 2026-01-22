@@ -23,11 +23,11 @@ def stock_scraper_page() -> None:
     with col1:
         if 'scraper_symbols' not in st.session_state:
             st.session_state['scraper_symbols'] = DEFAULT_SYMBOLS
-        symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', value=st.session_state['scraper_symbols'], key='scraper_symbols', on_change=save_config)
+        symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', key='scraper_symbols', on_change=save_config)
     with col2:
         if 'scraper_modal' not in st.session_state:
             st.session_state['scraper_modal'] = 1000000
-        modal_rupiah = st.number_input("Masukkan modal dalam Rupiah", step=1000000, format="%d", min_value=0, value=st.session_state['scraper_modal'], key='scraper_modal', on_change=save_config)
+        modal_rupiah = st.number_input("Masukkan modal dalam Rupiah", step=1000000, format="%d", min_value=0, key='scraper_modal', on_change=save_config)
 
     if st.button('Ambil Data', key='fetch_data'):
         with st.spinner('Menganalisis saham...'):
