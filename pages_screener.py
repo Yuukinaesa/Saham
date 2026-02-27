@@ -76,6 +76,7 @@ def stock_screener_page() -> None:
                 # Hitung Public Float % jika data ada
                 if 'Float Shares' in df.columns and 'Shares Outstanding' in df.columns:
                     df['Public Float %'] = (df['Float Shares'] / df['Shares Outstanding'] * 100).fillna(0)
+                    df['Public Float %'] = df['Public Float %'].replace([float('inf'), float('-inf')], 0)
 
                 df_display = df[df['Current Price'] > 0].copy() if 'Current Price' in df.columns else df.copy()
                 df_display = df_display.reset_index(drop=True)

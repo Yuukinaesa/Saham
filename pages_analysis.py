@@ -667,6 +667,16 @@ def get_multi_timeframe_signals(history):
     4. Strict RSI zones (<25 oversold, >75 overbought)
     5. Volume Spike Confirmation
     """
+    if history is None or history.empty:
+        return [
+            {"label": "1 Hari", "signal": "UNKNOWN", "color": "gray", "reason": "Data kosong"},
+            {"label": "3 Hari", "signal": "UNKNOWN", "color": "gray", "reason": "Data kosong"},
+            {"label": "1 Minggu", "signal": "UNKNOWN", "color": "gray", "reason": "Data kosong"},
+            {"label": "1 Bulan", "signal": "UNKNOWN", "color": "gray", "reason": "Data kosong"},
+            {"label": "2 Bulan", "signal": "UNKNOWN", "color": "gray", "reason": "Data kosong"},
+            {"label": "3 Bulan", "signal": "UNKNOWN", "color": "gray", "reason": "Data kosong"}
+        ]
+        
     results = []
     close = history['Close']
     high = history['High']
@@ -695,8 +705,15 @@ def get_multi_timeframe_signals(history):
         # Simplified ADX
         plus_dm = high.diff()
         minus_dm = -low.diff()
-        plus_dm[plus_dm < 0] = 0
-        minus_dm[minus_dm < 0] = 0
+        
+        pos_dm = plus_dm.copy()
+        neg_dm = minus_dm.copy()
+        
+        pos_dm[(plus_dm < 0) | (plus_dm <= minus_dm)] = 0
+        neg_dm[(minus_dm < 0) | (minus_dm <= plus_dm)] = 0
+        
+        plus_dm = pos_dm
+        minus_dm = neg_dm
         
         tr1 = high - low
         tr2 = abs(high - close.shift())

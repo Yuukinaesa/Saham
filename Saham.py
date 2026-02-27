@@ -10,17 +10,12 @@ from pages_compound import compound_interest_page
 from pages_ara_arb import ara_arb_calculator_page
 from pages_warrant import warrant_calculator_page
 from pwa_setup import inject_pwa_support
-from pages_backup import backup_page
 from pages_trade_planner import trade_planner_page
 from pages_analysis import analysis_dashboard_page
 from pages_market_overview import market_overview_page
 from pages_technical_tools import technical_tools_page
 from pages_right_issue import right_issue_calculator_page
 from state_manager import load_config
-
-# Load persistence
-load_config()
-
 
 def apply_global_css() -> None:
     """Menerapkan styling global premium dengan Google Fonts (Inter) dan desain modern."""
@@ -200,6 +195,9 @@ def main() -> None:
         layout="wide",
         initial_sidebar_state="expanded",
     )
+    # Load persistence
+    load_config()
+    
     apply_global_css()
     inject_pwa_support() # Inject PWA Manifest and Tags
     
@@ -228,10 +226,9 @@ def main() -> None:
                 "Compound Interest",
                 "ARA ARB Calculator",
                 "Right Issue Calculator",
-                "Warrant Calculator",
-                "Backup & Restore"
+                "Warrant Calculator"
             ],
-            icons=["graph-up", "search", "calculator", "grid", "tools", "activity", "clipboard-data", "bookmark", "percent", "briefcase", "ticket-perforated", "cloud-arrow-down-fill"],
+            icons=["graph-up", "search", "calculator", "grid", "tools", "activity", "clipboard-data", "bookmark", "percent", "briefcase", "ticket-perforated"],
             menu_icon="cast",
             default_index=0,
             orientation="vertical",
@@ -299,8 +296,6 @@ def main() -> None:
             right_issue_calculator_page()
         elif menu_selection == "Warrant Calculator":
             warrant_calculator_page()
-        elif menu_selection == "Backup & Restore":
-            backup_page()
 
 
 if __name__ == "__main__":
