@@ -281,5 +281,6 @@ def trade_planner_page():
                 """, unsafe_allow_html=True)
                 
         else:
+            st.toast(f"🚨 Harga realtime {symbol} tidak ditemukan!", icon="🚨")
             st.error(f"Gagal mengambil data harga untuk {symbol}. Pastikan kode saham benar.")
 

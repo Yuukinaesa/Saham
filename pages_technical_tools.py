@@ -121,6 +121,7 @@ def technical_tools_page():
                         st.session_state['pivot_auto_data'] = data
                         st.success("Data berhasil diambil!")
                     else:
+                        st.toast(f"🚨 Data Pivot OHLC untuk {symbol} tidak ditemukan!", icon="🚨")
                         st.error("Data tidak ditemukan.")
             
             # Retrieve from session state if available
@@ -215,8 +216,10 @@ def technical_tools_page():
                              st.session_state['fibo_auto_data'] = {'high': period_high, 'low': period_low}
                              st.success("Data Swing ditemukan!")
                          else:
+                             st.toast(f"⚠️ Data historis Swing kosong untuk {symbol_fib}.", icon="⚠️")
                              st.error("Data history kosong.")
                      except Exception as e:
+                         st.toast(f"🚨 Gagal mengambil data {symbol_fib}: {e}", icon="🚨")
                          st.error(f"Gagal mengambil data: {e}")
             
              if st.session_state['fibo_auto_data']:

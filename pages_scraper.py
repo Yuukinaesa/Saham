@@ -40,6 +40,7 @@ def stock_scraper_page() -> None:
                 ]
                 stocks_data = fetch_stock_data(symbols_list)
                 if not stocks_data:
+                    st.toast("🚨 Gagal memuat data saham untuk Scraper!", icon="🚨")
                     st.error("Tidak ada data saham yang berhasil diambil")
                     return
 
@@ -153,4 +154,5 @@ def stock_scraper_page() -> None:
 
                 # Debug/raw dihapus agar UI sederhana
             except Exception as e:
+                st.toast(f"🚨 Terjadi kesalahan: {str(e)}", icon="🚨")
                 st.error(f"Terjadi kesalahan: {str(e)}")

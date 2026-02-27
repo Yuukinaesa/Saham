@@ -45,8 +45,13 @@ def stock_screener_page() -> None:
 
                 stocks_data = fetch_enhanced_stock_data(symbols_list)
                 if not stocks_data:
+                    st.toast("🚨 Gagal memuat data saham secara keseluruhan!", icon="🚨")
                     st.error("Tidak ada data saham yang berhasil diambil")
                     return
+                
+                if len(stocks_data) < len(symbols_list):
+                    missing = len(symbols_list) - len(stocks_data)
+                    st.toast(f"⚠️ Peringatan: {missing} data saham gagal dimuat atau tidak ditemukan!", icon="⚠️")
 
                 df = pd.DataFrame(stocks_data).T
 
@@ -157,6 +162,7 @@ def stock_screener_page() -> None:
 
                 # Hilangkan opsi debug/raw
             except Exception as e:
+                st.toast(f"🚨 Kesalahan saat mengekspor: {str(e)}", icon="🚨")
                 st.error(f"Terjadi kesalahan: {str(e)}")
 
             # Hindari render ganda pada run yang sama

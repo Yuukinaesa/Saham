@@ -70,6 +70,7 @@ def fetch_market_overview(symbols):
                 continue
                 
     except Exception as e:
+        st.toast(f"🚨 Error dalam proses batch heatmap: {e}", icon="🚨")
         st.error(f"Error fetching data: {e}")
         return []
         
@@ -83,43 +84,71 @@ def market_overview_page():
     </div>
     """, unsafe_allow_html=True)
     
-    # CSS to tighten and neatly wrap the horizontal radio group
+    # === DESAIN PILIHAN KATEGORI SAHAM ===
     st.markdown("""
     <style>
+    /* Styling for the radio buttons to look like segmented tabs */
     div.row-widget.stRadio > div[role="radiogroup"] {
         display: flex;
-        flex-wrap: wrap;
-        row-gap: 10px;
-        column-gap: 15px;
+        justify-content: center;
+        background-color: var(--secondary-background-color);
+        padding: 5px;
+        border-radius: 12px;
+        margin-bottom: 15px;
+        border: 1px solid rgba(128,128,128,0.2);
+    }
+    div.row-widget.stRadio > div[role="radiogroup"] > label {
+        padding: 6px 16px;
+        border-radius: 8px;
+        margin: 0 4px;
+        cursor: pointer;
+        transition: 0.2s;
     }
     </style>
     """, unsafe_allow_html=True)
     
-    options = ["🌐 SEMUA SAHAM (GET ALL)"] + list(MARKET_INDICES.keys())
-    
-    # Radio for selecting index/sector
-    selected_index_name = st.radio(
-        "Pilih Kategori Saham",
-        options=options,
+    category_group = st.radio(
+        "Filter Kategori",
+        options=["🌐 Semua Saham Terpantau", "📈 Indeks Utama", "🏭 Sektor", "🏢 Konglomerasi"],
         index=0,
-        horizontal=True
+        horizontal=True,
+        label_visibility="collapsed"
     )
     
+    main_indices = ["LQ45 (Top 45 Likuid)", "IDX30 (Top 30 Kapitalisasi)", "JII (Jakarta Islamic Index)", "IDX80", "IDXHIDIV20 (High Dividend)"]
+    sectoral_indices = [k for k in MARKET_INDICES.keys() if k.startswith("IDX") and k not in main_indices]
+    group_indices = [k for k in MARKET_INDICES.keys() if k.startswith("Grup")]
+    
+    selected_index_name = "SEMUA SAHAM"
+    if category_group == "📈 Indeks Utama":
+        selected_index_name = st.selectbox("📌 Pilih Indeks Spesifik:", main_indices)
+    elif category_group == "🏭 Sektor":
+        selected_index_name = st.selectbox("📌 Pilih Sektor Spesifik:", sectoral_indices)
+    elif category_group == "🏢 Konglomerasi":
+        selected_index_name = st.selectbox("📌 Pilih Grup Bisnis:", group_indices)
+    
     # Process choices
-    if selected_index_name == "🌐 SEMUA SAHAM (GET ALL)":
+    if category_group == "🌐 Semua Saham Terpantau":
         all_syms = set()
         for syms_list in MARKET_INDICES.values():
             all_syms.update(syms_list)
         selected_symbols = list(all_syms)
+        display_name = "Gabungan Seluruh Kategori di Sistem"
     else:
         selected_symbols = MARKET_INDICES[selected_index_name]
+        display_name = selected_index_name
     
-    with st.spinner(f"Mengambil data {selected_index_name}... (Mungkin butuh waktu lebih lama untuk Get All)"):
+    with st.spinner(f"Mengambil data {display_name}... (Mungkin butuh waktu pemrosesan)"):
         data = fetch_market_overview(selected_symbols)
         
     if not data:
+        st.toast("🚨 Gagal memuat data pasar secara keseluruhan!", icon="🚨")
         st.error("Gagal memuat data pasar.")
         return
+        
+    if len(data) < len(selected_symbols):
+        missing = len(selected_symbols) - len(data)
+        st.toast(f"⚠️ Peringatan: {missing} data saham gagal dimuat atau tidak tersedia!", icon="⚠️")
         
     df = pd.DataFrame(data)
     

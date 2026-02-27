@@ -402,12 +402,17 @@ def get_stock_data(symbol):
         
         # 2. Fetch History (5 Tahun terakhir untuk teknikal & seasonality)
         history = ticker.history(period="5y")
+        if history.empty:
+            st.toast(f"⚠️ Peringatan: Data riwayat harga {ticker_symbol} kosong atau gagal dimuat!", icon="⚠️")
         
         # 3. Fetch Info (Fundamental)
         info = {}
         try:
             info = ticker.info
+            if not info or len(info) == 0:
+                st.toast(f"⚠️ Peringatan: Data info fundamental {ticker_symbol} tidak ditemukan!", icon="⚠️")
         except:
+            st.toast(f"⚠️ Peringatan: Gagal mengambil data fundamental {ticker_symbol}!", icon="⚠️")
             info = {}
             
         # 5. Fetch Analyst Recommendations
@@ -487,6 +492,7 @@ def get_stock_data(symbol):
             }
         }
     except Exception as e:
+        st.toast(f"🚨 Gagal mengambil data {symbol}: {e}", icon="🚨")
         st.error(f"Error mengambil data: {e}")
         return None
 
@@ -1209,6 +1215,7 @@ def render_trade_plan_integrated(current_price):
         # Summary Plan
         st.success(f"**PLAN:** Entry @{format_rupiah(manual_price)} | SL @{format_rupiah(sl_price)} (-{stop_loss_pct}%) | TP @{format_rupiah(tp_price)} (+{stop_loss_pct*rrr:.2f}%)")
     except Exception as e:
+        st.toast(f"🚨 Kesalahan kalkulasi Trade Planner: {e}", icon="🚨")
         st.error(f"Terjadi kesalahan kalkulasi: {e}")
 
 def render_smart_summary(analysis_data, history):
@@ -1297,6 +1304,7 @@ def analysis_dashboard_page():
                 st.session_state['analysis_data'] = data
                 st.session_state['analysis_symbol'] = symbol
             else:
+                st.toast(f"🚨 Data saham {symbol} gagal dimuat penuh!", icon="🚨")
                 st.error("Gagal mengambil data. Pastikan koneksi internet aktif dan kode saham benar.")
 
     # Render Content if Data Exists

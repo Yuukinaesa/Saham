@@ -36,6 +36,7 @@ def compound_interest_page() -> None:
         with st.spinner('Menghitung bunga berbunga...'):
             try:
                 if firstm == 0 and rate == 0:
+                    st.toast("⚠️ Input awal dan tingkat bunga 0!", icon="⚠️")
                     st.error("Silakan masukkan nilai investasi awal dan tingkat bunga untuk menghitung compound interest")
                     return
                 df = calculate_compound_interest(firstm, rate, years, additional_investment)
@@ -87,6 +88,7 @@ def compound_interest_page() -> None:
                     with st.expander(f'📅 Tahun {year_num}', expanded=False):
                         st.dataframe(yearly_data[['Month', 'Amount']].set_index(yearly_data.index + 1), width='stretch')
             except Exception:
+                st.toast("🚨 Terjadi kesalahan perhitungan Compound!", icon="🚨")
                 st.error("Silakan masukkan nilai investasi awal dan tingkat bunga untuk menghitung compound interest")
 
 

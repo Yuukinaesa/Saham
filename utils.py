@@ -213,6 +213,7 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
                 'Forward Annual Dividend Yield (%)': forward_dividend_yield,
             }
         except Exception as e:
+            st.toast(f"🚨 Gagal mengambil data {symbol}: {str(e)}", icon="🚨")
             st.error(f"Error saat mengambil data {symbol}: {str(e)}")
             continue
     return data
@@ -286,6 +287,7 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
                 'Dividend Yield %': safe_float(info.get('dividendYield', 0)) * 100,
             }
         except Exception as e:
+            st.toast(f"🚨 Gagal mengambil data {symbol}: {str(e)}", icon="🚨")
             st.error(f"Error saat mengambil data {symbol}: {str(e)}")
             continue
     return data
