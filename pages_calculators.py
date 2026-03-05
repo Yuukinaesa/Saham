@@ -643,7 +643,3 @@ def rata_rata_harga_calculator() -> None:
                 </div>
                 """, unsafe_allow_html=True)
 
-
-    # ── Bagian 1: Input Batch Pembelian ──────────────────────────────
-    st.markdown("### 📋 Data Pembelian")
-    num_batches = st.number_input("Jumlah Batch Pembelian:", min_value=1, max_value=20, value=2, step=1)
