@@ -4,6 +4,7 @@ import yfinance as yf
 from utils import format_rupiah, format_percent
 from state_manager import get_param, set_param
 
+@st.cache_data(ttl=60, show_spinner=False)
 def get_realtime_price(symbol):
     try:
         # Tambahkan .JK jika belum ada dan bukan kode komposit/indeks tertentu

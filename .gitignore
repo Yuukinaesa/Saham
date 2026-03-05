@@ -4,3 +4,4 @@ __pycache__/
 .streamlit/
 .devcontainer/
 .env
+user_config.json

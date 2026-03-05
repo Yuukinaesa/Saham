@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 from utils import format_rupiah, format_number
 from state_manager import get_param, set_param
 
+@st.cache_data(ttl=300, show_spinner=False)
 def get_ohlc_data(symbol):
     try:
         ticker = yf.Ticker(f"{symbol}.JK")
