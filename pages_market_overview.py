@@ -6,75 +6,71 @@ from config import MARKET_INDICES
 from utils import format_rupiah, format_percent, format_large_number
 from state_manager import get_param, set_param
 
+import time
+
 @st.cache_data(ttl=600)
 def fetch_market_overview(symbols):
-    """Fetch data for a given list of symbols."""
+    """Fetch data for a given list of symbols in small batches with retry."""
     if not symbols:
         return []
-    
-    # Batch fetch is faster
-    tickers = [f"{s}.JK" for s in symbols]
-    data_list = []
-    
-    # yfinance mass download
-    try:
-        # Download 1 day interval, last 5 days just to be safe getting prev close
-        df = yf.download(tickers, period="2d", group_by='ticker', progress=False)
-        
-        for symbol in symbols:
+
+    BATCH_SIZE = 10   # Download maks 10 ticker sekaligus
+    MAX_RETRY  = 2    # Retry per batch jika gagal
+    data_list  = []
+    failed     = 0
+
+    for batch_start in range(0, len(symbols), BATCH_SIZE):
+        batch_syms = symbols[batch_start : batch_start + BATCH_SIZE]
+        tickers    = [f"{s}.JK" for s in batch_syms]
+
+        df = None
+        for attempt in range(MAX_RETRY + 1):
+            try:
+                df = yf.download(tickers, period="2d", group_by="ticker", progress=False, threads=False)
+                if df is not None and not df.empty:
+                    break
+            except Exception:
+                pass
+            if attempt < MAX_RETRY:
+                time.sleep(1)  # Tunggu sebentar sebelum retry
+
+        if df is None or df.empty:
+            failed += len(batch_syms)
+            continue
+
+        for symbol in batch_syms:
             try:
                 t_sym = f"{symbol}.JK"
-                # If dataframe is MultiIndex, access by ticker
-                if isinstance(df.columns, pd.MultiIndex):
-                     pdf = df[t_sym]
-                else:
-                     # Single ticker case (rare here since we passed list)
-                     pdf = df
-                
+                pdf = df[t_sym] if isinstance(df.columns, pd.MultiIndex) else df
+
                 if pdf.empty or len(pdf) < 1:
+                    failed += 1
                     continue
-                
-                # Get last row
+
                 last = pdf.iloc[-1]
-                # Get prev row (if available, else difficult)
-                if len(pdf) >= 2:
-                    prev = pdf.iloc[-2]
-                    prev_close = prev['Close']
-                else:
-                     # Fallback if only 1 day data
-                     prev_close = last['Open'] # Approx
-                
-                close_price = last['Close']
-                market_cap = 10000000000 # Placeholder rough weight if fetch fails
-                
-                # Calculate change
-                change = close_price - prev_close
-                change_pct = (change / prev_close) * 100 if prev_close else 0
-                
-                # Try simple market cap weighting:
-                # Since we don't have realtime Mcap from bulk history, we use equal size 
-                # OR we try to fetch info one by one (TOO SLOW).
-                # BETTER APPROACH: Use Volume * Close as a proxy for "Activity Size" or just simple block
-                # Let's use Volume * Close = Turnover Value for Heatmap Size
-                turnover = last['Volume'] * close_price
-                
+                prev_close = pdf.iloc[-2]["Close"] if len(pdf) >= 2 else last["Open"]
+
+                close_price  = last["Close"]
+                change       = close_price - prev_close
+                change_pct   = (change / prev_close) * 100 if prev_close else 0
+                turnover     = last["Volume"] * close_price
+
                 data_list.append({
-                    "Symbol": symbol,
-                    "Price": close_price,
-                    "Change": change,
+                    "Symbol":   symbol,
+                    "Price":    close_price,
+                    "Change":   change,
                     "Change %": change_pct,
-                    "Volume": last['Volume'],
+                    "Volume":   last["Volume"],
                     "Turnover": turnover,
-                    "Sector": "General" # Ideally mapped
+                    "Sector":   "General"
                 })
-            except:
+            except Exception:
+                failed += 1
                 continue
-                
-    except Exception as e:
-        # Return None so the caller can handle UI feedback outside the cached function
-        return None
-        
-    return data_list
+
+    # Kembalikan (data_list, failed) agar caller tahu berapa yang gagal
+    return data_list, failed
+
 
 def market_overview_page():
     st.markdown("""
@@ -154,23 +150,26 @@ def market_overview_page():
         display_name = selected_index_name
     
     with st.spinner(f"Mengambil data {display_name}... (Mungkin butuh waktu pemrosesan)"):
-        data = fetch_market_overview(selected_symbols)
+        result = fetch_market_overview(tuple(selected_symbols))
 
-    if data is None:
+    # Unpack tuple (data_list, failed)
+    if result is None:
         st.toast("🚨 Error dalam proses batch heatmap!", icon="🚨")
         st.error("Gagal mengambil data heatmap. Cek koneksi atau coba lagi nanti.")
         return
+
+    data, failed = result
 
     if not data:
         st.toast("🚨 Gagal memuat data pasar secara keseluruhan!", icon="🚨")
         st.error("Gagal memuat data pasar.")
         return
-        
-    if len(data) < len(selected_symbols):
-        missing = len(selected_symbols) - len(data)
-        st.toast(f"⚠️ Peringatan: {missing} data saham gagal dimuat atau tidak tersedia!", icon="⚠️")
-        
+
+    if failed > 0:
+        st.toast(f"⚠️ {failed} ticker gagal dimuat (sisanya berhasil).", icon="⚠️")
+
     df = pd.DataFrame(data)
+
     
     # --- METRICS SUMMARY ---
     total_up = len(df[df['Change %'] > 0])
