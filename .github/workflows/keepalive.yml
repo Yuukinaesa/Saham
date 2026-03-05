@@ -1,0 +1,59 @@
+name: 🔄 Keep Alive - Prevent Streamlit Sleep
+
+on:
+  schedule:
+    # Ping setiap 25 menit (GitHub Actions cron minimal 5 menit)
+    # Format: menit jam hari bulan hari_minggu
+    - cron: '*/25 * * * *'
+  workflow_dispatch: # Bisa di-trigger manual dari GitHub
+
+jobs:
+  keepalive:
+    name: Ping Streamlit App
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: 📡 Ping App (HTTP Warmup)
+        # Kirim request HTTP ke app agar server tidak sleep.
+        # Ganti APP_URL dengan URL Streamlit Cloud kamu.
+        # Contoh: https://saham-namauser.streamlit.app
+        run: |
+          APP_URL="${{ secrets.STREAMLIT_APP_URL }}"
+
+          if [ -z "$APP_URL" ]; then
+            echo "⚠️  STREAMLIT_APP_URL secret belum diset!"
+            echo "Cara set: GitHub repo → Settings → Secrets → Actions → New secret"
+            echo "Name: STREAMLIT_APP_URL"
+            echo "Value: https://namaapp.streamlit.app"
+            exit 1
+          fi
+
+          echo "🔄 Pinging: $APP_URL"
+
+          # curl dengan:
+          #   -L  : ikuti redirect
+          #   -A  : user-agent browser agar tidak diblokir
+          #   --max-time 30 : timeout 30 detik
+          #   -s  : silent (tidak tampilkan progress bar)
+          #   -o /dev/null : buang output
+          #   -w  : tampilkan HTTP status code
+          HTTP_STATUS=$(curl -L \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36" \
+            --max-time 30 \
+            -s \
+            -o /dev/null \
+            -w "%{http_code}" \
+            "$APP_URL")
+
+          echo "✅ HTTP Status: $HTTP_STATUS"
+
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
+            echo "🟢 App aktif dan merespons."
+          else
+            echo "🔴 App merespons dengan status $HTTP_STATUS — mungkin sedang sleep."
+          fi
+
+      - name: 🕒 Log Waktu Ping
+        run: |
+          echo "Ping dilakukan pada: $(TZ='Asia/Jakarta' date '+%Y-%m-%d %H:%M:%S WIB')"
