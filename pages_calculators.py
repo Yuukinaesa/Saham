@@ -87,11 +87,13 @@ def calculator_page(title: str, fee_beli: float, fee_jual: float) -> None:
         </p>
         """, unsafe_allow_html=True)
 
-    calculator_mode = st.radio("Pilih Mode Kalkulator", ["Saham", "Multiple Saham", "HAKA vs Limit"], horizontal=True)
+    calculator_mode = st.radio("Pilih Mode Kalkulator", ["Saham", "Multiple Saham", "HAKA vs Limit", "Rata-Rata Harga"], horizontal=True)
     if calculator_mode == "Saham":
         single_stock_calculator(title, fee_beli, fee_jual)
     elif calculator_mode == "HAKA vs Limit":
         haka_vs_limit_calculator(title, fee_beli)
+    elif calculator_mode == "Rata-Rata Harga":
+        rata_rata_harga_calculator()
     else:
         multiple_stocks_calculator(title, fee_beli, fee_jual)
 
@@ -442,3 +444,145 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
             st.download_button(label="📥 Download as CSV", data=csv, file_name="kalkulator_saham.csv", mime="text/csv")
 
 
+def rata_rata_harga_calculator() -> None:
+    st.markdown('<div class="section-title">📉 Kalkulator Rata-Rata Harga (Averaging)</div>', unsafe_allow_html=True)
+    st.info("Hitung harga rata-rata dari beberapa kali pembelian (averaging down/up). Bisa juga simulasikan berapa lot lagi yang perlu dibeli untuk mencapai target harga rata-rata.")
+
+    # ── Bagian 1: Input Batch Pembelian ──────────────────────────────
+    st.markdown("### 📋 Data Pembelian")
+    num_batches = st.number_input("Jumlah Batch Pembelian:", min_value=1, max_value=20, value=2, step=1)
+
+    batches = []
+    for i in range(int(num_batches)):
+        col_lot, col_harga = st.columns(2)
+        with col_lot:
+            lot = st.number_input(f"Lot Batch {i+1}", min_value=1, value=10, step=1, key=f"avg_lot_{i}")
+        with col_harga:
+            harga = st.number_input(f"Harga Batch {i+1} (Rp)", min_value=1, value=1000 + i * 100, step=1, key=f"avg_harga_{i}")
+        batches.append({"lot": lot, "harga": harga})
+
+    # ── Bagian 2: Target Rata-Rata (Opsional) ────────────────────────
+    st.markdown("### 🎯 Target Rata-Rata (Opsional)")
+    use_target = st.checkbox("Hitung lot tambahan untuk mencapai target rata-rata")
+    target_avg = 0
+    target_harga_beli = 0
+    if use_target:
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            target_avg = st.number_input("Target Harga Rata-Rata (Rp)", min_value=1, value=900, step=1)
+        with col_t2:
+            target_harga_beli = st.number_input("Harga Beli Lot Tambahan (Rp)", min_value=1, value=800, step=1)
+
+    if st.button("Hitung Rata-Rata", type="primary", key="calc_avg"):
+        # ── Kalkulasi ─────────────────────────────────────────────────
+        total_lot   = sum(b["lot"] for b in batches)
+        total_saham = total_lot * 100
+        total_nilai = sum(b["lot"] * 100 * b["harga"] for b in batches)
+        harga_rata  = total_nilai / total_saham if total_saham > 0 else 0
+
+        harga_pertama       = batches[0]["harga"]
+        is_averaging_down   = harga_rata < harga_pertama
+        color               = "#10b981" if is_averaging_down else "#f59e0b"
+        label               = "Averaging Down ✅" if is_averaging_down else "Averaging Up ⚠️"
+
+        # ── Kartu Hasil Utama ─────────────────────────────────────────
+        st.markdown("---")
+        st.markdown(f"""
+        <div class='premium-card' style='border-left: 5px solid {color};'>
+            <div style='display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;'>
+                <h4 style='color:var(--text-color); margin:0; font-size:1.15rem;'>📊 Hasil Rata-Rata Harga</h4>
+                <span style='background-color:{color}22; color:{color}; padding:4px 14px; border-radius:9999px; font-weight:600; font-size:0.85rem;'>{label}</span>
+            </div>
+            <div style='display:grid; grid-template-columns:repeat(3,1fr); gap:16px;'>
+                <div style='text-align:center; padding:14px; background-color:rgba(128,128,128,0.08); border-radius:10px;'>
+                    <p style='margin:0; font-size:0.78rem; opacity:0.7; font-weight:500;'>Harga Rata-Rata</p>
+                    <p style='margin:6px 0 0 0; font-size:1.5rem; font-weight:700; color:{color};'>{format_rupiah(harga_rata)}</p>
+                </div>
+                <div style='text-align:center; padding:14px; background-color:rgba(128,128,128,0.08); border-radius:10px;'>
+                    <p style='margin:0; font-size:0.78rem; opacity:0.7; font-weight:500;'>Total Lot</p>
+                    <p style='margin:6px 0 0 0; font-size:1.5rem; font-weight:700;'>{total_lot:,} Lot</p>
+                </div>
+                <div style='text-align:center; padding:14px; background-color:rgba(128,128,128,0.08); border-radius:10px;'>
+                    <p style='margin:0; font-size:0.78rem; opacity:0.7; font-weight:500;'>Total Investasi</p>
+                    <p style='margin:6px 0 0 0; font-size:1.5rem; font-weight:700;'>{format_rupiah(total_nilai)}</p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # ── Tabel Detail Batch ────────────────────────────────────────
+        st.markdown("#### 📋 Detail Setiap Batch")
+        rows = []
+        for i, b in enumerate(batches):
+            nilai = b["lot"] * 100 * b["harga"]
+            bobot = (nilai / total_nilai * 100) if total_nilai > 0 else 0
+            rows.append({
+                "Batch":       f"Batch {i+1}",
+                "Lot":         b["lot"],
+                "Lembar":      b["lot"] * 100,
+                "Harga (Rp)":  format_rupiah(b["harga"]),
+                "Nilai (Rp)":  format_rupiah(nilai),
+                "Bobot (%)":   f"{bobot:.1f}%"
+            })
+        rows.append({
+            "Batch":       "🔢 TOTAL",
+            "Lot":         total_lot,
+            "Lembar":      total_saham,
+            "Harga (Rp)":  f"Rata-rata: {format_rupiah(harga_rata)}",
+            "Nilai (Rp)":  format_rupiah(total_nilai),
+            "Bobot (%)":   "100%"
+        })
+        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+
+        # ── Simulasi Target Rata-Rata ─────────────────────────────────
+        if use_target and target_harga_beli > 0 and target_avg > 0:
+            st.markdown("---")
+            st.markdown("#### 🎯 Simulasi Lot Tambahan")
+
+            # Rumus:
+            # avg_baru = (total_nilai + X*100*harga_beli_baru) / ((total_lot + X)*100)
+            # Selesaikan X:
+            # X = (total_nilai - target_avg * total_saham) / (100 * (target_avg - harga_beli_baru))
+            denominator = target_avg - target_harga_beli
+            if denominator == 0:
+                st.warning("Harga beli tambahan sama dengan target rata-rata — tidak perlu tambah lot.")
+            elif denominator > 0:
+                st.warning("⚠️ Harga beli tambahan LEBIH TINGGI dari target rata-rata. Mustahil menurunkan rata-rata dengan cara ini.")
+            else:
+                x_lot_float = (total_nilai - target_avg * total_saham) / (100 * denominator)
+                x_lot = math.ceil(x_lot_float)
+
+                if x_lot <= 0:
+                    st.success("✅ Rata-rata saat ini sudah memenuhi atau lebih rendah dari target!")
+                else:
+                    nilai_tambahan   = x_lot * 100 * target_harga_beli
+                    total_lot_baru   = total_lot + x_lot
+                    total_nilai_baru = total_nilai + nilai_tambahan
+                    avg_baru         = total_nilai_baru / (total_lot_baru * 100)
+                    t_color          = "#3b82f6"
+
+                    st.markdown(f"""
+                    <div class='premium-card' style='border-left:5px solid {t_color};'>
+                        <h4 style='color:{t_color}; margin:0 0 16px 0;'>🎯 Untuk Mencapai Rata-Rata ≤ {format_rupiah(target_avg)}</h4>
+                        <div style='display:grid; grid-template-columns:repeat(2,1fr); gap:16px;'>
+                            <div style='padding:12px; background-color:rgba(59,130,246,0.08); border-radius:10px;'>
+                                <p style='margin:0; font-size:0.78rem; opacity:0.7;'>Lot Tambahan Diperlukan</p>
+                                <p style='margin:6px 0 0 0; font-size:1.4rem; font-weight:700; color:{t_color};'>{x_lot:,} Lot</p>
+                                <p style='margin:4px 0 0 0; font-size:0.78rem; opacity:0.7;'>@ {format_rupiah(target_harga_beli)} per lembar</p>
+                            </div>
+                            <div style='padding:12px; background-color:rgba(59,130,246,0.08); border-radius:10px;'>
+                                <p style='margin:0; font-size:0.78rem; opacity:0.7;'>Modal Tambahan</p>
+                                <p style='margin:6px 0 0 0; font-size:1.4rem; font-weight:700; color:{t_color};'>{format_rupiah(nilai_tambahan)}</p>
+                            </div>
+                            <div style='padding:12px; background-color:rgba(128,128,128,0.08); border-radius:10px;'>
+                                <p style='margin:0; font-size:0.78rem; opacity:0.7;'>Total Lot Setelah Averaging</p>
+                                <p style='margin:6px 0 0 0; font-size:1.2rem; font-weight:700;'>{total_lot_baru:,} Lot</p>
+                            </div>
+                            <div style='padding:12px; background-color:rgba(128,128,128,0.08); border-radius:10px;'>
+                                <p style='margin:0; font-size:0.78rem; opacity:0.7;'>Rata-Rata Baru (Estimasi)</p>
+                                <p style='margin:6px 0 0 0; font-size:1.2rem; font-weight:700; color:#10b981;'>{format_rupiah(avg_baru)}</p>
+                            </div>
+                        </div>
+                        <p style='margin:12px 0 0 0; font-size:0.8rem; opacity:0.6;'>* Jumlah lot dibulatkan ke atas agar rata-rata pasti mencapai target.</p>
+                    </div>
+                    """, unsafe_allow_html=True)
