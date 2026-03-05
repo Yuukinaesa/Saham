@@ -78,7 +78,7 @@ def compound_interest_page() -> None:
 </div>
 """, unsafe_allow_html=True)
                 with st.expander('Tampilkan Data', expanded=True):
-                    st.dataframe(df_display.set_index(df_display.index + 1), width='stretch', height=400)
+                    st.dataframe(df_display.set_index(df_display.index + 1), use_container_width=True, height=400)
                     df_download = df.copy()
                     df_download['Amount'] = df_download['Amount'].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
                     csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
@@ -86,7 +86,7 @@ def compound_interest_page() -> None:
                 for year_num in range(1, int(years) + 1):
                     yearly_data = df_display[df_display['Year'] == year_num]
                     with st.expander(f'📅 Tahun {year_num}', expanded=False):
-                        st.dataframe(yearly_data[['Month', 'Amount']].set_index(yearly_data.index + 1), width='stretch')
+                        st.dataframe(yearly_data[['Month', 'Amount']].set_index(yearly_data.index + 1), use_container_width=True)
             except Exception:
                 st.toast("🚨 Terjadi kesalahan perhitungan Compound!", icon="🚨")
                 st.error("Silakan masukkan nilai investasi awal dan tingkat bunga untuk menghitung compound interest")

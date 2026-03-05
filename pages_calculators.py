@@ -131,7 +131,7 @@ def haka_vs_limit_calculator(title: str, fee_beli: float) -> None:
         if harga_ara <= harga_input:
              harga_ara = harga_input + get_tick_size(harga_input)
 
-    if st.button("Hitung Perbandingan", type="primary", width='stretch'):
+    if st.button("Hitung Perbandingan", type="primary", use_container_width=True):
         # 1. Limit Order Calculation
         # Formula: Lot = Modal / (Price * 100 * (1 + Fee))
         harga_per_lot_limit = harga_input * 100 * (1 + fee_beli)
@@ -433,7 +433,7 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
                     'Profit/Loss %': format_percent(stock['profit_loss_percentage'], 2)
                 })
             df_detail = pd.DataFrame(detail_data)
-            st.dataframe(df_detail, width='stretch', hide_index=True)
+            st.dataframe(df_detail, use_container_width=True, hide_index=True)
             df_download = df_detail.copy()
             for col in df_download.columns:
                 if col in ['Harga Beli', 'Harga Jual', 'Total Beli', 'Total Jual', 'Profit/Loss']:

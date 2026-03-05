@@ -177,7 +177,7 @@ def multiple_warrant_calculator(fee_beli: float, fee_jual: float) -> None:
             df_view['Keuntungan'] = df_view['Keuntungan'].apply(lambda x: format_rupiah(x))
             df_view['Persentase %'] = df_view['Persentase %'].apply(lambda x: format_percent(x, 2))
             
-            st.dataframe(df_view, width='stretch', hide_index=True)
+            st.dataframe(df_view, use_container_width=True, hide_index=True)
             
             # CSV Download
             df_download = df_w_multi.copy()

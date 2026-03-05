@@ -12,7 +12,7 @@ import time
 def fetch_market_overview(symbols):
     """Fetch data for a given list of symbols in small batches with retry."""
     if not symbols:
-        return []
+        return [], 0
 
     BATCH_SIZE = 10   # Download maks 10 ticker sekaligus
     MAX_RETRY  = 2    # Retry per batch jika gagal

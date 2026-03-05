@@ -641,10 +641,10 @@ def render_recommendations(rec_df, history):
             # Display cleanly
             st.dataframe(
                 df_display.set_index('Periode') if 'Periode' in df_display.columns else df_display, 
-                width='stretch'
+                use_container_width=True
             )
         except Exception as e:
-            st.dataframe(rec_df.tail(5), width='stretch')
+            st.dataframe(rec_df.tail(5), use_container_width=True)
     else:
         st.warning("Tidak ada data rekomendasi analis institusi untuk saham ini.")
 
@@ -1033,7 +1033,7 @@ def render_technical(history, symbol):
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)'
             )
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
         else:
             st.line_chart(history['Close'])
             st.info("Install 'plotly' untuk melihat Candlestick chart yang lebih detail.")
@@ -1064,18 +1064,18 @@ def render_technical(history, symbol):
                 pivot_table.style.format("{:.2%}")
                 .background_gradient(cmap='RdYlGn', vmin=-0.1, vmax=0.1)
                 .highlight_null(color='transparent'),
-                width='stretch'
+                use_container_width=True
             )
         except ImportError:
             # Fallback if matplotlib is missing
             st.dataframe(
                 pivot_table.style.format("{:.2%}")
                 .highlight_null(color='transparent'),
-                width='stretch'
+                use_container_width=True
             )
         except Exception:
              # General fallback
-            st.dataframe(pivot_table, width='stretch')
+            st.dataframe(pivot_table, use_container_width=True)
         
         # Average Seasonality Chart
         avg_seasonality = m_df.groupby('MonthNum')['Return'].mean()
@@ -1292,7 +1292,7 @@ def analysis_dashboard_page():
     with col_search:
         symbol = st.text_input("💎 Masukkan Kode Saham", value=_saved_sym, label_visibility="collapsed", placeholder="Contoh: BBRI").upper()
     with col_btn:
-        analyze_btn = st.button("🔍 Analisa Sekarang", type="primary", width='stretch')
+        analyze_btn = st.button("🔍 Analisa Sekarang", type="primary", use_container_width=True)
     
     # Session State Management
     if 'analysis_data' not in st.session_state:

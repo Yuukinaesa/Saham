@@ -179,7 +179,6 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
             stock = yf.Ticker(symbol)
             info = stock.info
             if not info:
-                st.warning(f"Tidak ada info untuk {symbol}")
                 continue
             current_price = None
             price_keys = ['regularMarketPrice', 'regularMarketPreviousClose', 'currentPrice', 'previousClose']
@@ -188,7 +187,6 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
                     current_price = info[key]
                     break
             if current_price is None:
-                st.warning(f"Tidak dapat menemukan harga valid untuk {symbol}")
                 continue
             def safe_float(value, default=0):
                 if value is None or pd.isna(value):
@@ -212,9 +210,7 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
                 'Forward Annual Dividend Rate (DPS)': round(info.get('dividendRate', 0)),
                 'Forward Annual Dividend Yield (%)': forward_dividend_yield,
             }
-        except Exception as e:
-            st.toast(f"🚨 Gagal mengambil data {symbol}: {str(e)}", icon="🚨")
-            st.error(f"Error saat mengambil data {symbol}: {str(e)}")
+        except Exception:
             continue
     return data
 
@@ -238,7 +234,6 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
             stock = yf.Ticker(symbol)
             info = stock.info
             if not info or len(info) == 0:
-                st.warning(f"Tidak ada info untuk {symbol}")
                 continue
 
             # Determine a valid current price using several candidates
@@ -252,7 +247,6 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
                 except Exception:
                     pass
             if current_price is None:
-                st.warning(f"Tidak dapat menemukan harga valid untuk {symbol}")
                 continue
 
             def safe_float(value, default=0.0):
@@ -286,9 +280,7 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
                 'EPS': safe_float(info.get('trailingEps', 0)),
                 'Dividend Yield %': safe_float(info.get('dividendYield', 0)) * 100,
             }
-        except Exception as e:
-            st.toast(f"🚨 Gagal mengambil data {symbol}: {str(e)}", icon="🚨")
-            st.error(f"Error saat mengambil data {symbol}: {str(e)}")
+        except Exception:
             continue
     return data
 

@@ -197,10 +197,6 @@ def trade_planner_page():
             st.markdown("---")
             st.markdown("#### 🧠 Professional Insight")
             
-            # --- PROFESSIONAL METRICS SECTION ---
-            st.markdown("---")
-            st.markdown("#### 🧠 Professional Insight")
-            
             # Calculate Breakeven Win Rate
             be_winrate = (1 / (1 + rrr)) * 100
             
