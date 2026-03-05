@@ -446,9 +446,16 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
 
 def rata_rata_harga_calculator() -> None:
     st.markdown('<div class="section-title">📉 Kalkulator Rata-Rata Harga (Averaging)</div>', unsafe_allow_html=True)
-    st.info("Hitung harga rata-rata dari beberapa kali pembelian. Lihat posisi vs harga sekarang, dan simulasikan berapa lot lagi untuk turunkan rata-rata.")
 
-    # ── Bagian 1: Input Batch Pembelian ──────────────────────────────
+    # ── Pilih Mode ────────────────────────────────────────────────────
+    avg_mode = st.radio(
+        "Mode Kalkulator",
+        ["📊 Hitung Rata-Rata", "🎯 Simulasi Averaging"],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+
+    # ── Input Batch Pembelian (selalu tampil di dua mode) ─────────────
     st.markdown("### 📋 Data Pembelian")
     num_batches = st.number_input("Jumlah Batch Pembelian:", min_value=1, max_value=20, value=2, step=1)
 
@@ -461,26 +468,36 @@ def rata_rata_harga_calculator() -> None:
             harga = st.number_input(f"Harga Batch {i+1} (Rp)", min_value=1, value=1000 + i * 100, step=1, key=f"avg_harga_{i}")
         batches.append({"lot": lot, "harga": harga})
 
-    # ── Bagian 2: Harga Sekarang ──────────────────────────────────────
-    st.markdown("### 📈 Harga Sekarang")
-    harga_sekarang = st.number_input(
-        "Harga Market Saat Ini (Rp)", min_value=1, value=950, step=1,
-        help="Harga saham di market saat ini untuk melihat posisi untung/rugi vs rata-rata."
-    )
+    # ── MODE 1: Hitung Rata-Rata ──────────────────────────────────────
+    if avg_mode == "📊 Hitung Rata-Rata":
+        st.markdown("### 📈 Harga Sekarang")
+        harga_sekarang = st.number_input(
+            "Harga Market Saat Ini (Rp)", min_value=1, value=950, step=1,
+            help="Harga saham di market saat ini untuk melihat posisi untung/rugi vs rata-rata."
+        )
+        target_avg = 0
+        target_harga_beli = 0
 
-    # ── Bagian 3: Simulasi Lot Tambahan ──────────────────────────────
-    st.markdown("### 🎯 Simulasi Averaging Tambahan")
-    col_t1, col_t2 = st.columns(2)
-    with col_t1:
-        target_avg = st.number_input(
-            "Target Harga Rata-Rata (Rp)", min_value=1, value=900, step=1,
-            help="Rata-rata yang ingin dicapai setelah averaging."
+    # ── MODE 2: Simulasi Averaging ────────────────────────────────────
+    else:
+        st.markdown("### 🎯 Target Averaging")
+        col_t1, col_t2 = st.columns(2)
+        with col_t1:
+            target_avg = st.number_input(
+                "Target Harga Rata-Rata (Rp)", min_value=1, value=900, step=1,
+                help="Rata-rata yang ingin dicapai setelah averaging."
+            )
+        with col_t2:
+            target_harga_beli = st.number_input(
+                "Harga Beli Lot Tambahan (Rp)", min_value=1, value=800, step=1,
+                help="Di harga berapa kamu akan averaging."
+            )
+        harga_sekarang = st.number_input(
+            "Harga Market Saat Ini (Rp)", min_value=1, value=950, step=1,
+            help="Untuk menghitung perkiraan P&L setelah averaging.",
+            key="avg_hs_sim"
         )
-    with col_t2:
-        target_harga_beli = st.number_input(
-            "Harga Beli Lot Tambahan (Rp)", min_value=1, value=800, step=1,
-            help="Di harga berapa kamu akan averaging (beli lot tambahan)."
-        )
+
 
     if st.button("Hitung Rata-Rata", type="primary", key="calc_avg"):
         # ── Kalkulasi Utama ───────────────────────────────────────────
