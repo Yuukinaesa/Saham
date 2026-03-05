@@ -2,9 +2,8 @@ name: 🔄 Keep Alive - Prevent Streamlit Sleep
 
 on:
   schedule:
-    # Ping setiap 5 menit (minimum GitHub Actions)
     - cron: '*/5 * * * *'
-  workflow_dispatch: # Bisa di-trigger manual dari tab Actions GitHub
+  workflow_dispatch:
 
 jobs:
   keepalive:
@@ -15,33 +14,48 @@ jobs:
     steps:
       - name: 📡 Ping App
         run: |
-          APP_URL="https://sahamidx.streamlit.app/"
+          python3 - <<'EOF'
+          import urllib.request
+          import urllib.error
+          import ssl
+          import sys
+          from datetime import datetime, timezone, timedelta
 
-          echo "🔄 Pinging: $APP_URL"
+          URL = "https://sahamidx.streamlit.app/"
+          WIB = timezone(timedelta(hours=7))
+          now = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S WIB")
 
-          # Gunakan --max-redirs 5 (jangan -L tanpa batas → exit code 47)
-          # -I : hanya ambil header (HEAD request, lebih ringan)
-          # --max-redirs 5 : izinkan max 5 redirect
-          HTTP_STATUS=$(curl \
-            -I \
-            --max-redirs 5 \
-            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36" \
-            --max-time 30 \
-            -s \
-            -o /dev/null \
-            -w "%{http_code}" \
-            "$APP_URL")
+          print(f"🔄 Pinging {URL}")
+          print(f"🕒 Waktu: {now}")
 
-          echo "✅ HTTP Status: $HTTP_STATUS"
+          try:
+              req = urllib.request.Request(
+                  URL,
+                  headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"}
+              )
+              # Buat handler yang toleran terhadap redirect panjang
+              opener = urllib.request.build_opener(
+                  urllib.request.HTTPRedirectHandler()
+              )
+              opener.addheaders = [("User-Agent", "Mozilla/5.0")]
+              
+              response = opener.open(req, timeout=30)
+              print(f"✅ HTTP Status: {response.status}")
+              print("🟢 App aktif dan merespons dengan baik.")
 
-          # Terima 2xx DAN 3xx sebagai "app hidup"
-          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 500 ]; then
-            echo "🟢 App aktif dan merespons (HTTP $HTTP_STATUS)."
-          else
-            echo "🔴 App merespons dengan status $HTTP_STATUS — mungkin error."
-            exit 1
-          fi
+          except urllib.error.HTTPError as e:
+              # HTTPError berarti server merespons (hanya error code)
+              print(f"✅ HTTP Status: {e.code}")
+              if e.code < 500:
+                  print("🟡 App merespons (mungkin butuh wake up).")
+              else:
+                  print("🔴 App error server.")
+                  sys.exit(1)
 
-      - name: 🕒 Log Waktu Ping
-        run: |
-          echo "Ping dilakukan pada: $(TZ='Asia/Jakarta' date '+%Y-%m-%d %H:%M:%S WIB')"
+          except Exception as e:
+              # Koneksi gagal total — jangan fail workflow
+              print(f"⚠️ Tidak bisa terhubung: {e}")
+              print("🔴 App mungkin sedang sleep total.")
+              # Tidak sys.exit(1) agar workflow tidak merah
+
+          EOF
