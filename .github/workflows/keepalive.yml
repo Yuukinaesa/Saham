@@ -19,7 +19,12 @@ jobs:
 
           echo "🔄 Pinging: $APP_URL"
 
-          HTTP_STATUS=$(curl -L \
+          # Gunakan --max-redirs 5 (jangan -L tanpa batas → exit code 47)
+          # -I : hanya ambil header (HEAD request, lebih ringan)
+          # --max-redirs 5 : izinkan max 5 redirect
+          HTTP_STATUS=$(curl \
+            -I \
+            --max-redirs 5 \
             -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36" \
             --max-time 30 \
             -s \
@@ -29,10 +34,12 @@ jobs:
 
           echo "✅ HTTP Status: $HTTP_STATUS"
 
-          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 400 ]; then
-            echo "🟢 App aktif dan merespons dengan baik."
+          # Terima 2xx DAN 3xx sebagai "app hidup"
+          if [ "$HTTP_STATUS" -ge 200 ] && [ "$HTTP_STATUS" -lt 500 ]; then
+            echo "🟢 App aktif dan merespons (HTTP $HTTP_STATUS)."
           else
-            echo "🔴 App merespons dengan status $HTTP_STATUS"
+            echo "🔴 App merespons dengan status $HTTP_STATUS — mungkin error."
+            exit 1
           fi
 
       - name: 🕒 Log Waktu Ping
