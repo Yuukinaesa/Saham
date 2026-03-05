@@ -9,13 +9,13 @@ from pages_calculators import calculator_page
 from pages_compound import compound_interest_page
 from pages_ara_arb import ara_arb_calculator_page
 from pages_warrant import warrant_calculator_page
-from pwa_setup import inject_pwa_support
+from pwa_setup import inject_pwa_support, inject_keepalive
 from pages_trade_planner import trade_planner_page
 from pages_analysis import analysis_dashboard_page
 from pages_market_overview import market_overview_page
 from pages_technical_tools import technical_tools_page
 from pages_right_issue import right_issue_calculator_page
-from state_manager import load_config
+from state_manager import load_config, get_param, set_param
 
 def apply_global_css() -> None:
     """Menerapkan styling global premium dengan Google Fonts (Inter) dan desain modern."""
@@ -199,7 +199,8 @@ def main() -> None:
     load_config()
     
     apply_global_css()
-    inject_pwa_support() # Inject PWA Manifest and Tags
+    inject_pwa_support()    # Inject PWA Manifest and Tags
+    inject_keepalive(5)     # Ping setiap 5 menit agar tidak sleep
     
     col1, col2 = st.columns([1, 4], gap="small")
     
@@ -213,9 +214,7 @@ def main() -> None:
             unsafe_allow_html=True,
         )
         
-        menu_selection = option_menu(
-            None,
-            [
+        _menu_items = [
                 "Scraper Saham",
                 "Screener Saham",
                 "Kalkulator Saham",
@@ -227,10 +226,16 @@ def main() -> None:
                 "ARA ARB Calculator",
                 "Right Issue Calculator",
                 "Warrant Calculator"
-            ],
+            ]
+        _saved_menu = get_param("menu", "Scraper Saham")
+        _default_idx = _menu_items.index(_saved_menu) if _saved_menu in _menu_items else 0
+
+        menu_selection = option_menu(
+            None,
+            _menu_items,
             icons=["graph-up", "search", "calculator", "grid", "tools", "activity", "clipboard-data", "bookmark", "percent", "briefcase", "ticket-perforated"],
             menu_icon="cast",
-            default_index=0,
+            default_index=_default_idx,
             orientation="vertical",
             styles={
                 "container": {"padding": "0!important", "background-color": "transparent"},
@@ -250,6 +255,9 @@ def main() -> None:
             """,
             unsafe_allow_html=True,
         )
+
+        # Simpan menu aktif ke URL agar ingat setelah refresh
+        set_param("menu", menu_selection)
 
         if menu_selection == "Scraper Saham":
             stock_scraper_page()

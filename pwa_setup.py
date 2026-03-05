@@ -101,3 +101,39 @@ def inject_pwa_support():
     """
     
     st.markdown(pwa_html, unsafe_allow_html=True)
+
+
+def inject_keepalive(interval_minutes: int = 5):
+    """
+    Inject JavaScript keep-alive ping agar Streamlit Cloud tidak sleep.
+    Setiap `interval_minutes` menit, JS fetch URL app sendiri di background
+    untuk mensimulasikan aktivitas dan mencegah idle timeout.
+    """
+    interval_ms = interval_minutes * 60 * 1000
+    keepalive_html = f"""
+    <script>
+    (function() {{
+        // Jangan register ulang kalau sudah ada
+        if (window._keepAliveTimer) return;
+
+        const INTERVAL_MS = {interval_ms};
+        const appUrl = window.location.href;
+
+        function ping() {{
+            fetch(appUrl, {{
+                method: 'GET',
+                mode: 'no-cors',
+                cache: 'no-cache'
+            }}).then(function() {{
+                console.log('[KeepAlive] Ping sent at ' + new Date().toLocaleTimeString());
+            }}).catch(function(err) {{
+                console.warn('[KeepAlive] Ping failed:', err);
+            }});
+        }}
+
+        window._keepAliveTimer = setInterval(ping, INTERVAL_MS);
+        console.log('[KeepAlive] Aktif - ping setiap {interval_minutes} menit.');
+    }})();
+    </script>
+    """
+    st.markdown(keepalive_html, unsafe_allow_html=True)

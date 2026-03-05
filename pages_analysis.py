@@ -3,6 +3,7 @@ import pandas as pd
 import yfinance as yf
 import datetime
 from utils import format_rupiah, format_percent, format_large_number, get_tick_size, round_price_to_tick
+from state_manager import get_param, set_param
 
 # Plotly Imports
 try:
@@ -1285,9 +1286,11 @@ def analysis_dashboard_page():
     st.markdown("Fundamental, Teknikal, News, dan Trade Planner dalam satu tampilan.")
     
     # Input
+    # Restore last symbol from URL
+    _saved_sym = get_param("a_sym", "BBRI")
     col_search, col_btn = st.columns([3, 1])
     with col_search:
-        symbol = st.text_input("💎 Masukkan Kode Saham", value="BBRI", label_visibility="collapsed", placeholder="Contoh: BBRI").upper()
+        symbol = st.text_input("💎 Masukkan Kode Saham", value=_saved_sym, label_visibility="collapsed", placeholder="Contoh: BBRI").upper()
     with col_btn:
         analyze_btn = st.button("🔍 Analisa Sekarang", type="primary", width='stretch')
     
@@ -1298,6 +1301,7 @@ def analysis_dashboard_page():
         st.session_state['analysis_symbol'] = ""
 
     if analyze_btn:
+        set_param("a_sym", symbol)  # Simpan ke URL
         with st.spinner(f"Sedang membedah data {symbol}..."):
             data = get_stock_data(symbol)
             if data:

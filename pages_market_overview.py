@@ -4,6 +4,7 @@ import yfinance as yf
 import plotly.express as px
 from config import MARKET_INDICES
 from utils import format_rupiah, format_percent, format_large_number
+from state_manager import get_param, set_param
 
 @st.cache_data(ttl=600)
 def fetch_market_overview(symbols):
@@ -70,9 +71,8 @@ def fetch_market_overview(symbols):
                 continue
                 
     except Exception as e:
-        st.toast(f"🚨 Error dalam proses batch heatmap: {e}", icon="🚨")
-        st.error(f"Error fetching data: {e}")
-        return []
+        # Return None so the caller can handle UI feedback outside the cached function
+        return None
         
     return data_list
 
@@ -107,13 +107,19 @@ def market_overview_page():
     </style>
     """, unsafe_allow_html=True)
     
+    _cat_options = ["🌐 Semua Saham Terpantau", "📈 Indeks Utama", "🏭 Sektor", "🏢 Konglomerasi"]
+    _saved_cat = get_param("mo_cat", "🌐 Semua Saham Terpantau")
+    _cat_idx   = _cat_options.index(_saved_cat) if _saved_cat in _cat_options else 0
+
     category_group = st.radio(
         "Filter Kategori",
-        options=["🌐 Semua Saham Terpantau", "📈 Indeks Utama", "🏭 Sektor", "🏢 Konglomerasi"],
-        index=0,
+        options=_cat_options,
+        index=_cat_idx,
         horizontal=True,
         label_visibility="collapsed"
     )
+    # Simpan pilihan kategori ke URL
+    set_param("mo_cat", category_group)
     
     main_indices = ["LQ45 (Top 45 Likuid)", "IDX30 (Top 30 Kapitalisasi)", "JII (Jakarta Islamic Index)", "IDX80", "IDXHIDIV20 (High Dividend)"]
     sectoral_indices = [k for k in MARKET_INDICES.keys() if k.startswith("IDX") and k not in main_indices]
@@ -121,11 +127,20 @@ def market_overview_page():
     
     selected_index_name = "SEMUA SAHAM"
     if category_group == "📈 Indeks Utama":
-        selected_index_name = st.selectbox("📌 Pilih Indeks Spesifik:", main_indices)
+        _saved_idx = get_param("mo_idx", main_indices[0])
+        _def = _saved_idx if _saved_idx in main_indices else main_indices[0]
+        selected_index_name = st.selectbox("📌 Pilih Indeks Spesifik:", main_indices, index=main_indices.index(_def))
+        set_param("mo_idx", selected_index_name)
     elif category_group == "🏭 Sektor":
-        selected_index_name = st.selectbox("📌 Pilih Sektor Spesifik:", sectoral_indices)
+        _saved_idx = get_param("mo_idx", sectoral_indices[0] if sectoral_indices else "")
+        _def = _saved_idx if _saved_idx in sectoral_indices else (sectoral_indices[0] if sectoral_indices else None)
+        selected_index_name = st.selectbox("📌 Pilih Sektor Spesifik:", sectoral_indices, index=sectoral_indices.index(_def) if _def in sectoral_indices else 0)
+        set_param("mo_idx", selected_index_name)
     elif category_group == "🏢 Konglomerasi":
-        selected_index_name = st.selectbox("📌 Pilih Grup Bisnis:", group_indices)
+        _saved_idx = get_param("mo_idx", group_indices[0] if group_indices else "")
+        _def = _saved_idx if _saved_idx in group_indices else (group_indices[0] if group_indices else None)
+        selected_index_name = st.selectbox("📌 Pilih Grup Bisnis:", group_indices, index=group_indices.index(_def) if _def in group_indices else 0)
+        set_param("mo_idx", selected_index_name)
     
     # Process choices
     if category_group == "🌐 Semua Saham Terpantau":
@@ -140,7 +155,12 @@ def market_overview_page():
     
     with st.spinner(f"Mengambil data {display_name}... (Mungkin butuh waktu pemrosesan)"):
         data = fetch_market_overview(selected_symbols)
-        
+
+    if data is None:
+        st.toast("🚨 Error dalam proses batch heatmap!", icon="🚨")
+        st.error("Gagal mengambil data heatmap. Cek koneksi atau coba lagi nanti.")
+        return
+
     if not data:
         st.toast("🚨 Gagal memuat data pasar secara keseluruhan!", icon="🚨")
         st.error("Gagal memuat data pasar.")

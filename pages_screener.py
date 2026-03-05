@@ -14,6 +14,7 @@ from utils import (
     format_csv_indonesia,
 )
 from utils import fetch_enhanced_stock_data
+from state_manager import get_param, set_param
 
 
 def get_simple_arrow(value: float) -> str:
@@ -30,10 +31,12 @@ def get_simple_arrow(value: float) -> str:
 def stock_screener_page() -> None:
     col1, col2 = st.columns(2, gap="small")
     with col1:
-        symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', DEFAULT_SYMBOLS)
+        _saved_syms = get_param("sc_syms", DEFAULT_SYMBOLS)
+        symbols = st.text_area('Masukkan simbol saham (pisahkan dengan koma)', _saved_syms)
     # Tidak ada checkbox debug di screener
 
     if st.button('Screener Saham', key='screener_data'):
+        set_param("sc_syms", symbols.strip())  # Simpan ke URL
         with st.spinner('Menganalisis saham...'):
             try:
                 symbols_list = [

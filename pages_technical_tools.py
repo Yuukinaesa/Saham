@@ -3,6 +3,7 @@ import pandas as pd
 import yfinance as yf
 import plotly.graph_objects as go
 from utils import format_rupiah, format_number
+from state_manager import get_param, set_param
 
 def get_ohlc_data(symbol):
     try:
@@ -112,8 +113,10 @@ def technical_tools_page():
         h, l, c = 0.0, 0.0, 0.0
         
         if input_source == "Auto (Hari Sebelumnya)":
-            symbol = st.text_input("Kode Saham (Contoh: BBRI)", value="BBRI").upper()
+            _saved_psym = get_param("tt_psym", "BBRI")
+            symbol = st.text_input("Kode Saham (Contoh: BBRI)", value=_saved_psym).upper()
             if st.button("Ambil Data Pivot"):
+                 set_param("tt_psym", symbol)  # Simpan ke URL
                  with st.spinner(f"Mengambil data {symbol}..."):
                     data = get_ohlc_data(symbol)
                     if data:
@@ -202,8 +205,10 @@ def technical_tools_page():
         swing_high_val = 1100.0
 
         if fib_source == "Auto (1 Bulan Terakhir)":
-             symbol_fib = st.text_input("Kode Saham (Fibo)", value="BBRI").upper()
+             _saved_fsym = get_param("tt_fsym", "BBRI")
+             symbol_fib = st.text_input("Kode Saham (Fibo)", value=_saved_fsym).upper()
              if st.button("Ambil Data Swing"):
+                 set_param("tt_fsym", symbol_fib)  # Simpan ke URL
                  with st.spinner(f"Mencari Swing High/Low {symbol_fib}..."):
                      try:
                          # Fetch 1 Month Data

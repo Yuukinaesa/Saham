@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 from utils import format_rupiah, format_percent
+from state_manager import get_param, set_param
 
 def get_realtime_price(symbol):
     try:
@@ -28,12 +29,21 @@ def trade_planner_page():
     </div>
     """, unsafe_allow_html=True)
 
+    # Restore saved values from URL
+    _sym     = get_param("tp_sym", "BBRI")
+    _modal   = get_param("tp_modal", 10000000)
+    _sl      = get_param("tp_sl", 3.0)
+    _rrr     = get_param("tp_rrr", 2.0)
+    _mode    = get_param("tp_mode", 0)  # 0 = Money Mgmt, 1 = Fixed Capital
+    _modes   = ["Hitung Lot dari Resiko (Money Management)", "Hitung Resiko dari Modal Entry (Fixed Capital)"]
+    _risk_pct= get_param("tp_risk", 2.0)
+
     # Input Section
     col_input1, col_input2 = st.columns([1, 1], gap="large")
     
     with col_input1:
         st.markdown("### 1. Data Saham & Modal")
-        symbol = st.text_input("Kode Saham (Contoh: BBRI, TLKM)", value="BBRI").upper()
+        symbol = st.text_input("Kode Saham (Contoh: BBRI, TLKM)", value=_sym).upper()
         
         # Opsi Harga Manual
         use_manual_price = st.checkbox("Input Harga Entry Manual")
@@ -44,32 +54,39 @@ def trade_planner_page():
         
         calc_mode = st.radio(
             "Metode Perhitungan",
-            ["Hitung Lot dari Resiko (Money Management)", "Hitung Resiko dari Modal Entry (Fixed Capital)"],
-            index=0,
+            _modes,
+            index=_mode,
             help="Pilih apakah ingin menghitung jumlah lot berdasarkan batas resiko portfolio, atau menghitung resiko berdasarkan jumlah uang yang ingin ditradingkan."
         )
 
         if calc_mode == "Hitung Lot dari Resiko (Money Management)":
-            modal = st.number_input("Total Portfolio (Rp)", min_value=100000, value=10000000, step=1000000, help="Total seluruh uang di akun sekuritas Anda.")
+            modal = st.number_input("Total Portfolio (Rp)", min_value=100000, value=int(_modal), step=1000000, help="Total seluruh uang di akun sekuritas Anda.")
             risk_label = "Resiko per Trade (% dari Portfolio)"
             show_risk_input = True
         else:
-            modal = st.number_input("Modal Entry (Rp)", min_value=100000, value=1000000, step=100000, help="Total uang yang ingin Anda masukkan ke saham ini.")
+            modal = st.number_input("Modal Entry (Rp)", min_value=100000, value=int(_modal), step=100000, help="Total uang yang ingin Anda masukkan ke saham ini.")
             risk_label = "N/A"
             show_risk_input = False
     
     with col_input2:
         st.markdown("### 2. Parameter Risiko")
         if show_risk_input:
-            risk_per_trade_pct = st.number_input(risk_label, min_value=0.1, max_value=100.0, value=2.0, step=0.1, help="Berapa persen dari Portfolio yang siap Anda pertaruhkan.")
+            risk_per_trade_pct = st.number_input(risk_label, min_value=0.1, max_value=100.0, value=float(_risk_pct), step=0.1, help="Berapa persen dari Portfolio yang siap Anda pertaruhkan.")
         else:
             risk_per_trade_pct = 0.0 # Not used in this mode
             
-        stop_loss_pct = st.number_input("Jarak Stop Loss (% dari Harga Entry)", min_value=0.5, max_value=50.0, value=3.0, step=0.5, help="Jarak teknikal untuk Cut Loss.")
-        rrr = st.number_input("Risk Reward Ratio (1 : X)", min_value=1.0, value=2.0, step=0.1, help="Target profit minimal berapa kali lipat dari resiko.")
+        stop_loss_pct = st.number_input("Jarak Stop Loss (% dari Harga Entry)", min_value=0.5, max_value=50.0, value=float(_sl), step=0.5, help="Jarak teknikal untuk Cut Loss.")
+        rrr = st.number_input("Risk Reward Ratio (1 : X)", min_value=1.0, value=float(_rrr), step=0.1, help="Target profit minimal berapa kali lipat dari resiko.")
 
     # Action Button
     if st.button("Analisa Trade", type="primary"):
+        # Simpan semua parameter ke URL
+        set_param("tp_sym",   symbol)
+        set_param("tp_modal", int(modal))
+        set_param("tp_sl",    stop_loss_pct)
+        set_param("tp_rrr",   rrr)
+        set_param("tp_risk",  risk_per_trade_pct)
+        set_param("tp_mode",  _modes.index(calc_mode))
         current_price = None
         if use_manual_price and manual_entry_price > 0:
              current_price = manual_entry_price
