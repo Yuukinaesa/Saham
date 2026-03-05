@@ -2,8 +2,8 @@ name: 🔄 Keep Alive - Prevent Streamlit Sleep
 
 on:
   schedule:
-    # Ping setiap 25 menit
-    - cron: '*/25 * * * *'
+    # Ping setiap 5 menit (minimum GitHub Actions)
+    - cron: '*/5 * * * *'
   workflow_dispatch: # Bisa di-trigger manual dari tab Actions GitHub
 
 jobs:
