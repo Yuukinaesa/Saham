@@ -2,60 +2,38 @@ name: 🔄 Keep Alive - Prevent Streamlit Sleep
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '0 */6 * * *' # Menjalankan workflow setiap 6 jam
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   keepalive:
-    name: Ping sahamidx.streamlit.app
+    name: Ping and Commit to Keep App Awake
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
     steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
       - name: 📡 Ping App
         run: |
-          python3 - <<'EOF'
-          import urllib.request
-          import urllib.error
-          import ssl
-          import sys
-          from datetime import datetime, timezone, timedelta
+          echo "Pinging https://sahamidx.streamlit.app/..."
+          curl -sL --max-time 30 https://sahamidx.streamlit.app/ > /dev/null || echo "Ping failed or timeout, but moving on."
+          echo "Ping completed."
 
-          URL = "https://sahamidx.streamlit.app/"
-          WIB = timezone(timedelta(hours=7))
-          now = datetime.now(WIB).strftime("%Y-%m-%d %H:%M:%S WIB")
+      - name: 📝 Update Keep Alive File
+        run: |
+          mkdir -p .streamlit
+          echo "Last keep-alive ping: $(date)" > .streamlit/keepalive.txt
 
-          print(f"🔄 Pinging {URL}")
-          print(f"🕒 Waktu: {now}")
-
-          try:
-              req = urllib.request.Request(
-                  URL,
-                  headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0"}
-              )
-              # Buat handler yang toleran terhadap redirect panjang
-              opener = urllib.request.build_opener(
-                  urllib.request.HTTPRedirectHandler()
-              )
-              opener.addheaders = [("User-Agent", "Mozilla/5.0")]
-              
-              response = opener.open(req, timeout=30)
-              print(f"✅ HTTP Status: {response.status}")
-              print("🟢 App aktif dan merespons dengan baik.")
-
-          except urllib.error.HTTPError as e:
-              # HTTPError berarti server merespons (hanya error code)
-              print(f"✅ HTTP Status: {e.code}")
-              if e.code < 500:
-                  print("🟡 App merespons (mungkin butuh wake up).")
-              else:
-                  print("🔴 App error server.")
-                  sys.exit(1)
-
-          except Exception as e:
-              # Koneksi gagal total — jangan fail workflow
-              print(f"⚠️ Tidak bisa terhubung: {e}")
-              print("🔴 App mungkin sedang sleep total.")
-              # Tidak sys.exit(1) agar workflow tidak merah
-
-          EOF
+      - name: 🚀 Commit and Push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .streamlit/keepalive.txt
+          # Hanya commit kalau ada perubahan
+          git commit -m "🔄 chore: keep alive streamlit app to prevent sleep" || echo "No changes to commit"
+          git push
