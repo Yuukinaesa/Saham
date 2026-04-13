@@ -177,8 +177,7 @@ def ara_arb_calculator_page() -> None:
                         </div>
                         <div style='text-align: right;'>
                             <div style='font-size: 1.4rem; font-weight: 800; color: #10b981;'>{item['harga']:,.0f}</div>
-                            <div style='font-size: 0.9rem; opacity: 0.9; font-weight: 500; color: var(--text-color);'>{format_rupiah(net_value)} (Net)</div>
-                            {target_html_pl}
+                            <div style='font-size: 0.9rem; opacity: 0.9; font-weight: 500; color: var(--text-color);'>{format_rupiah(net_value)} (Net)</div>{target_html_pl}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -217,8 +216,7 @@ def ara_arb_calculator_page() -> None:
                         </div>
                         <div style='text-align: right;'>
                             <div style='font-size: 1.4rem; font-weight: 800; color: #ef4444;'>{item['harga']:,.0f}</div>
-                            <div style='font-size: 0.9rem; opacity: 0.9; font-weight: 500; color: var(--text-color);'>{format_rupiah(net_value)} (Net)</div>
-                            {target_html_pl}
+                            <div style='font-size: 0.9rem; opacity: 0.9; font-weight: 500; color: var(--text-color);'>{format_rupiah(net_value)} (Net)</div>{target_html_pl}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
