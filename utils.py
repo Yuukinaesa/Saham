@@ -9,6 +9,12 @@ import yfinance as yf
 import numpy as np
 import requests
 
+# ── Security & Validation Constants ──────────────────────────
+MAX_SYMBOL_LENGTH = 10
+MAX_SYMBOLS_PER_REQUEST = 50
+HTTP_REQUEST_TIMEOUT = 15  # seconds
+MAX_INPUT_VALUE = 1_000_000_000_000  # 1 Trillion Rupiah cap
+
 # Financial Logic Constants
 def get_tick_size(price: float) -> int:
     """
@@ -73,7 +79,9 @@ def apply_format_values(df: pd.DataFrame, formatters: Dict[str, callable]) -> pd
 
 
 def sanitize_stock_symbol(symbol: str) -> str:
-    return re.sub(r'[^a-zA-Z0-9.]', '', symbol)
+    """Sanitize stock symbol to prevent injection. Only allows alphanumeric and dot."""
+    cleaned = re.sub(r'[^a-zA-Z0-9.]', '', symbol)
+    return cleaned[:MAX_SYMBOL_LENGTH]  # Enforce max length
 
 
 def format_percent(value: float, decimals: int = 2) -> str:
@@ -91,7 +99,7 @@ def format_percent(value: float, decimals: int = 2) -> str:
 def format_rupiah(value: float) -> str:
     try:
         value = float(value) if not isinstance(value, (int, float)) else value
-        if pd.isna(value) or value == 0:
+        if value is None or (isinstance(value, float) and (math.isnan(value) or math.isinf(value))) or value == 0:
             return "Rp 0"
         return f"Rp {value:,.0f}".replace(",", ".")
     except (ValueError, TypeError):
@@ -169,6 +177,8 @@ def format_large_number(value: float) -> str:
             return f"{value:,.0f}"
     except (ValueError, TypeError):
         return "0"
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
     data = {}

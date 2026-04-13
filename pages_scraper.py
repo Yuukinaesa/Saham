@@ -4,7 +4,7 @@ from state_manager import save_config
 
 from config import DEFAULT_SYMBOLS
 from utils import (
-
+    MAX_SYMBOLS_PER_REQUEST,
     sanitize_stock_symbol,
     fetch_stock_data,
     apply_format_values,
@@ -32,11 +32,16 @@ def stock_scraper_page() -> None:
     if st.button('Ambil Data', key='fetch_data'):
         with st.spinner('Menganalisis saham...'):
             try:
+                raw_symbols = [s.strip() for s in symbols.split(',') if s.strip()]
+                if len(raw_symbols) > MAX_SYMBOLS_PER_REQUEST:
+                    st.warning(f"⚠️ Maksimal {MAX_SYMBOLS_PER_REQUEST} simbol per request. Hanya {MAX_SYMBOLS_PER_REQUEST} pertama yang diproses.")
+                    raw_symbols = raw_symbols[:MAX_SYMBOLS_PER_REQUEST]
+                
                 symbols_list = [
-                    sanitize_stock_symbol(symbol.strip().upper()) + '.JK' 
-                    if '.JK' not in symbol.strip().upper() 
-                    else sanitize_stock_symbol(symbol.strip().upper())
-                    for symbol in symbols.split(',')
+                    sanitize_stock_symbol(symbol.upper()) + '.JK' 
+                    if '.JK' not in symbol.upper() 
+                    else sanitize_stock_symbol(symbol.upper())
+                    for symbol in raw_symbols
                 ]
                 stocks_data = fetch_stock_data(symbols_list)
                 if not stocks_data:

@@ -109,7 +109,7 @@ def get_google_news_rss(symbol):
                             'publisher': entry.get('source', {}).get('title', 'Google News'),
                             'providerPublishTime': 0
                         })
-                except:
+                except Exception:
                     continue
                     
             if len(news_items) >= 20:
@@ -117,7 +117,7 @@ def get_google_news_rss(symbol):
                 
             # Small delay to avoid rate limiting
             time.sleep(0.5)
-        except:
+        except Exception:
             continue
     
     return news_items
@@ -412,7 +412,7 @@ def get_stock_data(symbol):
             info = ticker.info
             if not info or len(info) == 0:
                 st.toast(f"⚠️ Peringatan: Data info fundamental {ticker_symbol} tidak ditemukan!", icon="⚠️")
-        except:
+        except Exception:
             st.toast(f"⚠️ Peringatan: Gagal mengambil data fundamental {ticker_symbol}!", icon="⚠️")
             info = {}
             
@@ -420,7 +420,7 @@ def get_stock_data(symbol):
         recommendations = None
         try:
             recommendations = ticker.recommendations
-        except:
+        except Exception:
             pass
 
         # 4. Fetch News (Combined Sources - Maximum Coverage)
@@ -1142,10 +1142,19 @@ def render_news(news, sentiment_data=None):
             render_news_card(item, show_sentiment=False)
 
 def render_news_card(item, show_sentiment=False):
-    """Render a single news card with optional sentiment badge"""
-    title = item.get('title', 'No Title')
+    """Render a single news card with optional sentiment badge.
+    
+    Security: HTML-escapes title and validates link URL to prevent XSS.
+    """
+    import html as html_module
+    
+    title = html_module.escape(str(item.get('title', 'No Title')))
     link = item.get('link', '#')
-    publisher = item.get('publisher', 'Unknown')
+    publisher = html_module.escape(str(item.get('publisher', 'Unknown')))
+    
+    # Security: Only allow http/https links (prevent javascript: XSS)
+    if not isinstance(link, str) or not link.startswith(('http://', 'https://', '#')):
+        link = '#'
     
     # Determine sentiment badge
     badge_html = ""
@@ -1157,18 +1166,20 @@ def render_news_card(item, show_sentiment=False):
         if sentiment_score > 0:
             badge_html = f"<span style='background: #10b98120; color: #10b981; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;'>✅ POSITIF ({'+' + str(sentiment_score)})</span>"
             if pos_kw:
-                badge_html += f"<span style='margin-left: 5px; font-size: 9px; opacity: 0.6;'>🔍 {', '.join(pos_kw[:3])}</span>"
+                kw_text = html_module.escape(', '.join(str(k) for k in pos_kw[:3]))
+                badge_html += f"<span style='margin-left: 5px; font-size: 9px; opacity: 0.6;'>🔍 {kw_text}</span>"
         elif sentiment_score < 0:
             badge_html = f"<span style='background: #ef444420; color: #ef4444; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;'>⚠️ NEGATIF ({sentiment_score})</span>"
             if neg_kw:
-                badge_html += f"<span style='margin-left: 5px; font-size: 9px; opacity: 0.6;'>🔍 {', '.join(neg_kw[:3])}</span>"
+                kw_text = html_module.escape(', '.join(str(k) for k in neg_kw[:3]))
+                badge_html += f"<span style='margin-left: 5px; font-size: 9px; opacity: 0.6;'>🔍 {kw_text}</span>"
         else:
             badge_html = f"<span style='background: #9ca3af20; color: #9ca3af; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;'>⚪ NETRAL</span>"
     
     st.markdown(f"""
     <div style='background-color: var(--secondary-background-color); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(128,128,128,0.2);'>
         <div style='margin-bottom: 5px;'>{badge_html}</div>
-        <a href='{link}' target='_blank' style='text-decoration: none; color: var(--text-color); font-weight: 600; font-size: 15px;'>{title}</a>
+        <a href='{link}' target='_blank' rel='noopener noreferrer' style='text-decoration: none; color: var(--text-color); font-weight: 600; font-size: 15px;'>{title}</a>
         <div style='display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; opacity: 0.7;'>
             <span>📰 {publisher}</span>
         </div>

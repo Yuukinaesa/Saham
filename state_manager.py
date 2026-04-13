@@ -9,30 +9,62 @@ CONFIG_FILE = 'user_config.json'
 # ─────────────────────────────────────────────
 
 def load_config():
-    """Load configuration from local JSON file into session state if available."""
+    """Load configuration from local JSON file into session state if available.
+    
+    Security: Validates file path and data types before loading.
+    """
+    # Security: Ensure CONFIG_FILE is a simple filename (no path traversal)
+    if os.path.sep in CONFIG_FILE or '/' in CONFIG_FILE or '..' in CONFIG_FILE:
+        return
+    
     if os.path.exists(CONFIG_FILE):
         try:
-            with open(CONFIG_FILE, 'r') as f:
+            # Security: Check file size before reading (max 1MB)
+            if os.path.getsize(CONFIG_FILE) > 1_048_576:
+                return
+            
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+            
+            if not isinstance(data, dict):
+                return
+            
             valid_keys = ['scraper_symbols', 'scraper_modal']
             for k, v in data.items():
                 if k in valid_keys:
+                    # Type validation
+                    if k == 'scraper_symbols' and not isinstance(v, str):
+                        continue
+                    if k == 'scraper_modal' and not isinstance(v, (int, float)):
+                        continue
                     if k not in st.session_state:
                         st.session_state[k] = v
-        except Exception:
+        except (json.JSONDecodeError, IOError, OSError):
             pass
 
 def save_config():
-    """Save current relevant session state to local JSON file."""
+    """Save current relevant session state to local JSON file.
+    
+    Security: Validates data before writing and uses safe encoding.
+    """
+    # Security: Ensure CONFIG_FILE is a simple filename
+    if os.path.sep in CONFIG_FILE or '/' in CONFIG_FILE or '..' in CONFIG_FILE:
+        return
+    
     valid_keys = ['scraper_symbols', 'scraper_modal']
     data = {}
     for k in valid_keys:
         if k in st.session_state:
-            data[k] = st.session_state[k]
+            val = st.session_state[k]
+            # Type validation before saving
+            if k == 'scraper_symbols' and isinstance(val, str):
+                data[k] = val[:500]  # Cap length
+            elif k == 'scraper_modal' and isinstance(val, (int, float)):
+                data[k] = val
     try:
-        with open(CONFIG_FILE, 'w') as f:
-            json.dump(data, f)
-    except Exception:
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=True)
+    except (IOError, OSError):
         pass
 
 

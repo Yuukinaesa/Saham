@@ -4,6 +4,7 @@ import streamlit as st
 
 from config import DEFAULT_SYMBOLS
 from utils import (
+    MAX_SYMBOLS_PER_REQUEST,
     sanitize_stock_symbol,
     apply_format_values,
     format_rupiah,
@@ -39,11 +40,16 @@ def stock_screener_page() -> None:
         set_param("sc_syms", symbols.strip())  # Simpan ke URL
         with st.spinner('Menganalisis saham...'):
             try:
+                raw_symbols = [s.strip() for s in symbols.split(',') if s.strip()]
+                if len(raw_symbols) > MAX_SYMBOLS_PER_REQUEST:
+                    st.warning(f"⚠️ Maksimal {MAX_SYMBOLS_PER_REQUEST} simbol per request.")
+                    raw_symbols = raw_symbols[:MAX_SYMBOLS_PER_REQUEST]
+                
                 symbols_list = [
-                    sanitize_stock_symbol(symbol.strip().upper()) + '.JK' 
-                    if '.JK' not in symbol.strip().upper() 
-                    else sanitize_stock_symbol(symbol.strip().upper())
-                    for symbol in symbols.split(',')
+                    sanitize_stock_symbol(symbol.upper()) + '.JK' 
+                    if '.JK' not in symbol.upper() 
+                    else sanitize_stock_symbol(symbol.upper())
+                    for symbol in raw_symbols
                 ]
 
                 stocks_data = fetch_enhanced_stock_data(symbols_list)

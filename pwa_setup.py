@@ -37,6 +37,8 @@ def inject_pwa_support():
     <head>
         <link rel="manifest" href="{manifest_href}" crossorigin="use-credentials" />
         <meta name="theme-color" content="#2563eb" />
+        <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+        <meta name="referrer" content="strict-origin-when-cross-origin" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Saham IDX" />

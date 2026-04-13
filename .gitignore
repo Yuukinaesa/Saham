@@ -1,7 +1,58 @@
-backup.py
+# Python bytecode
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Streamlit config (may contain secrets)
 .streamlit/
+
+# Dev container config
 .devcontainer/
+
+# Environment variables (CRITICAL - never commit)
 .env
+.env.*
+*.env
+
+# User config (contains personal data)
 user_config.json
+
+# Backup files
+backup.py
+SahamBackup.py
+*.bak
+*.backup
+
+# IDE settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Security: Never commit keys or certs
+*.pem
+*.key
+*.crt
+*.p12
+secrets.json
+credentials.json

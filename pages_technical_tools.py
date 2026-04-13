@@ -30,7 +30,7 @@ def get_ohlc_data(symbol):
             "Prev_Low": prev_row['Low'],
             "Prev_Close": prev_row['Close']
         }
-    except:
+    except Exception:
         return None
 
 def calc_classic_pivot(h, l, c):
