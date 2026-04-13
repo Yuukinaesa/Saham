@@ -32,10 +32,10 @@ def get_kabarbursa_news(symbol):
                     'publisher': 'KabarBursa',
                     'providerPublishTime': 0
                 })
-            except:
+            except Exception:
                 continue
         return news_items
-    except:
+    except Exception:
         pass
     return []
 
@@ -53,10 +53,10 @@ def get_kontan_news(symbol):
                     'publisher': 'Kontan',
                     'providerPublishTime': 0
                 })
-            except:
+            except Exception:
                 continue
         return news_items
-    except:
+    except Exception:
         pass
     return []
 
@@ -74,10 +74,10 @@ def get_cnbc_news(symbol):
                     'publisher': 'CNBC Indonesia',
                     'providerPublishTime': 0
                 })
-            except:
+            except Exception:
                 continue
         return news_items
-    except:
+    except Exception:
         pass
     return []
 
@@ -136,10 +136,10 @@ def get_bisnis_news(symbol):
                     'publisher': 'Bisnis.com',
                     'providerPublishTime': 0
                 })
-            except:
+            except Exception:
                 continue
         return news_items
-    except:
+    except Exception:
         pass
     return []
 
@@ -157,10 +157,10 @@ def get_detik_finance_news(symbol):
                     'publisher': 'Detik Finance',
                     'providerPublishTime': 0
                 })
-            except:
+            except Exception:
                 continue
         return news_items
-    except:
+    except Exception:
         pass
     return []
 
@@ -178,10 +178,10 @@ def get_idx_channel_news(symbol):
                     'publisher': 'IDX Channel',
                     'providerPublishTime': 0
                 })
-            except:
+            except Exception:
                 continue
         return news_items
-    except:
+    except Exception:
         pass
     return []
 
@@ -199,10 +199,10 @@ def get_investing_indonesia_news(symbol):
                     'publisher': 'Investing.com ID',
                     'providerPublishTime': 0
                 })
-            except:
+            except Exception:
                 continue
         return news_items
-    except:
+    except Exception:
         pass
     return []
 
