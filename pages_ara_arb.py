@@ -138,33 +138,6 @@ def ara_arb_calculator_page() -> None:
             <p style='opacity: 0.8; font-size: 0.95rem;'>Estimasi pergerakan harga dan nilai bersih aset (setelah fee).</p>
         </div>
         """, unsafe_allow_html=True)
-        
-        # Calculate Base Net Value (Cost Basis if Buying, or Net Proceeds if Selling Now)
-        # Usually user inputs 'Close Price' as their 'Buy Price' or current price.
-        # Let's assume we want to see "If I sell at this sequence price, what do I get?"
-        # Asset Value Raw = Price * Lot * 100
-        # Net Sell Value = Asset Value Raw * (1 - Fee Jual)
-        
-        # Base Value (Gross)
-        base_value_gross = harga_penutupan * jumlah_lot * 100
-        base_value_net_sell = base_value_gross * (1 - fee_jual_final)
-        
-        target_html_pl_base = ""
-        if harga_beli > 0:
-            total_beli_base = (harga_beli * jumlah_lot * 100) * (1 + fee_beli_final)
-            profit_loss_base = base_value_net_sell - total_beli_base
-            profit_loss_pct_base = (profit_loss_base / total_beli_base * 100) if total_beli_base > 0 else 0
-            color_pl_base = "#10b981" if profit_loss_base >= 0 else "#ef4444"
-            target_html_pl_base = f"<div style='font-size: 0.9rem; font-weight: 700; color: {color_pl_base}; margin-top: 4px;'>P/L: {format_rupiah(profit_loss_base)} ({profit_loss_pct_base:+.2f}%)</div>"
-        
-        st.markdown(f"""
-        <div style='background-color: var(--secondary-background-color); padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); text-align: center; margin-bottom: 24px; max-width: 400px; margin-left: auto; margin-right: auto;'>
-            <div style='font-size: 0.9rem; opacity: 0.8;'>💰 Estimasi Net Jual (Harga Penutupan)</div>
-            <div style='font-size: 1.5rem; font-weight: 700; color: #3b82f6;'>{format_rupiah(base_value_net_sell)}</div>
-            <div style='font-size: 0.85rem; opacity: 0.7;'>Bruto: {format_rupiah(base_value_gross)}</div>
-            {target_html_pl_base}
-        </div>
-        """, unsafe_allow_html=True)
 
         # Loop through steps
         for i in range(max_steps):
