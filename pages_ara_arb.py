@@ -100,6 +100,7 @@ def ara_arb_calculator_page() -> None:
     with col_input2:
         st.markdown("""<div style='margin-bottom: 12px;'><h3 style='color: var(--text-color); margin-bottom: 12px;'>Data Harga & Sekuritas</h3></div>""", unsafe_allow_html=True)
         harga_penutupan = st.number_input('💰 Harga Penutupan', step=100, format="%d", min_value=1, value=975)
+        harga_beli = st.number_input('🛒 Harga Beli / Modal (Opsional)', step=100, format="%d", min_value=0, value=0, help="Isi untuk melihat estimasi Net Profit / Loss.")
         jumlah_lot = st.number_input('📦 Jumlah Lot (Opsional)', min_value=1, value=1, format="%d", help="Masukkan jumlah lot untuk estimasi nilai aset.")
         max_steps = st.number_input('📊 Jumlah Langkah', min_value=1, max_value=20, value=5, step=1)
         
@@ -118,9 +119,17 @@ def ara_arb_calculator_page() -> None:
             # Display info text about fee
             st.markdown(f"<p style='font-size:0.8rem; color:var(--text-color); opacity:0.7; margin-top:-10px; margin-bottom:10px;'>Fee: Beli {fee_beli*100:.2f}%, Jual {fee_jual*100:.2f}%</p>", unsafe_allow_html=True)
 
+        c1, c2 = st.columns(2)
+        with c1:
+            include_fee_beli = st.checkbox("Masukkan Fee Beli", value=True)
+        with c2:
+            include_fee_jual = st.checkbox("Masukkan Fee Jual", value=True)
+
     st.markdown("---")
     
     if st.button('Hitung ARA ARB', type='primary', use_container_width=True):
+        fee_beli_final = fee_beli if include_fee_beli else 0
+        fee_jual_final = fee_jual if include_fee_jual else 0
         ara_list, arb_list = calculate_ara_arb_sequence(harga_penutupan, is_acceleration, max_steps, arb_mode)
         
         st.markdown("""
@@ -138,13 +147,22 @@ def ara_arb_calculator_page() -> None:
         
         # Base Value (Gross)
         base_value_gross = harga_penutupan * jumlah_lot * 100
-        base_value_net_sell = base_value_gross * (1 - fee_jual)
+        base_value_net_sell = base_value_gross * (1 - fee_jual_final)
+        
+        target_html_pl_base = ""
+        if harga_beli > 0:
+            total_beli_base = (harga_beli * jumlah_lot * 100) * (1 + fee_beli_final)
+            profit_loss_base = base_value_net_sell - total_beli_base
+            profit_loss_pct_base = (profit_loss_base / total_beli_base * 100) if total_beli_base > 0 else 0
+            color_pl_base = "#10b981" if profit_loss_base >= 0 else "#ef4444"
+            target_html_pl_base = f"<div style='font-size: 0.9rem; font-weight: 700; color: {color_pl_base}; margin-top: 4px;'>P/L: {format_rupiah(profit_loss_base)} ({profit_loss_pct_base:+.2f}%)</div>"
         
         st.markdown(f"""
         <div style='background-color: var(--secondary-background-color); padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); text-align: center; margin-bottom: 24px; max-width: 400px; margin-left: auto; margin-right: auto;'>
-            <div style='font-size: 0.9rem; opacity: 0.8;'>💰 Estimasi Net Jual (Saat Ini)</div>
+            <div style='font-size: 0.9rem; opacity: 0.8;'>💰 Estimasi Net Jual (Harga Penutupan)</div>
             <div style='font-size: 1.5rem; font-weight: 700; color: #3b82f6;'>{format_rupiah(base_value_net_sell)}</div>
             <div style='font-size: 0.85rem; opacity: 0.7;'>Bruto: {format_rupiah(base_value_gross)}</div>
+            {target_html_pl_base}
         </div>
         """, unsafe_allow_html=True)
 
@@ -157,7 +175,15 @@ def ara_arb_calculator_page() -> None:
                 if i < len(ara_list):
                     item = ara_list[i]
                     gross_value = item['harga'] * jumlah_lot * 100
-                    net_value = gross_value * (1 - fee_jual)
+                    net_value = gross_value * (1 - fee_jual_final)
+                    
+                    target_html_pl = ""
+                    if harga_beli > 0:
+                        total_beli = (harga_beli * jumlah_lot * 100) * (1 + fee_beli_final)
+                        profit_loss = net_value - total_beli
+                        profit_loss_pct = (profit_loss / total_beli * 100) if total_beli > 0 else 0
+                        color_pl = "#10b981" if profit_loss >= 0 else "#ef4444"
+                        target_html_pl = f"<div style='font-size: 0.85rem; font-weight: 700; color: {color_pl}; margin-top: 4px;'>P/L: {format_rupiah(profit_loss)} ({profit_loss_pct:+.2f}%)</div>"
                     
                     st.markdown(f"""
                     <div style='
@@ -174,11 +200,12 @@ def ara_arb_calculator_page() -> None:
                         <div style='text-align: left;'>
                             <div style='font-size: 0.8rem; color: #10b981; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;'>Naik (ARA #{item['step']})</div>
                             <div style='font-size: 1rem; color: #10b981; font-weight: 700;'>↑ {item['persentase_perubahan']:.2f}%</div>
+                            <div style='font-size: 0.75rem; color: #10b981; margin-top: 4px; font-weight: 600;'>Total Naik: {item['persentase_kumulatif']:.2f}%</div>
                         </div>
                         <div style='text-align: right;'>
                             <div style='font-size: 1.4rem; font-weight: 800; color: #10b981;'>{item['harga']:,.0f}</div>
-                            <div style='font-size: 0.9rem; opacity: 0.9; font-weight: 500; color: var(--text-color);'>{format_rupiah(net_value)}</div>
-                            <div style='font-size: 0.75rem; color: #10b981; margin-top: 4px; font-weight: 600;'>Total Naik: {item['persentase_kumulatif']:.2f}%</div>
+                            <div style='font-size: 0.9rem; opacity: 0.9; font-weight: 500; color: var(--text-color);'>{format_rupiah(net_value)} (Net)</div>
+                            {target_html_pl}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
@@ -188,7 +215,15 @@ def ara_arb_calculator_page() -> None:
                 if i < len(arb_list):
                     item = arb_list[i]
                     gross_value = item['harga'] * jumlah_lot * 100
-                    net_value = gross_value * (1 - fee_jual)
+                    net_value = gross_value * (1 - fee_jual_final)
+                    
+                    target_html_pl = ""
+                    if harga_beli > 0:
+                        total_beli = (harga_beli * jumlah_lot * 100) * (1 + fee_beli_final)
+                        profit_loss = net_value - total_beli
+                        profit_loss_pct = (profit_loss / total_beli * 100) if total_beli > 0 else 0
+                        color_pl = "#10b981" if profit_loss >= 0 else "#ef4444"
+                        target_html_pl = f"<div style='font-size: 0.85rem; font-weight: 700; color: {color_pl}; margin-top: 4px;'>P/L: {format_rupiah(profit_loss)} ({profit_loss_pct:+.2f}%)</div>"
                     
                     st.markdown(f"""
                     <div style='
@@ -205,11 +240,12 @@ def ara_arb_calculator_page() -> None:
                         <div style='text-align: left;'>
                             <div style='font-size: 0.8rem; color: #ef4444; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;'>Turun (ARB #{item['step']})</div>
                             <div style='font-size: 1rem; color: #ef4444; font-weight: 700;'>↓ {abs(item['persentase_perubahan']):.2f}%</div>
+                            <div style='font-size: 0.75rem; color: #ef4444; margin-top: 4px; font-weight: 600;'>Total Turun: {item['persentase_kumulatif']:.2f}%</div>
                         </div>
                         <div style='text-align: right;'>
                             <div style='font-size: 1.4rem; font-weight: 800; color: #ef4444;'>{item['harga']:,.0f}</div>
-                            <div style='font-size: 0.9rem; opacity: 0.9; font-weight: 500; color: var(--text-color);'>{format_rupiah(net_value)}</div>
-                             <div style='font-size: 0.75rem; color: #ef4444; margin-top: 4px; font-weight: 600;'>Total Turun: {item['persentase_kumulatif']:.2f}%</div>
+                            <div style='font-size: 0.9rem; opacity: 0.9; font-weight: 500; color: var(--text-color);'>{format_rupiah(net_value)} (Net)</div>
+                            {target_html_pl}
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
