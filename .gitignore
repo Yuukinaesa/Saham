@@ -9,8 +9,8 @@ __pycache__/
 venv/
 env/
 
-# Streamlit config (may contain secrets)
-.streamlit/
+# Streamlit secrets (CRITICAL - never commit)
+.streamlit/secrets.toml
 
 # Dev container config
 .devcontainer/
@@ -43,6 +43,7 @@ desktop.ini
 
 # Logs
 *.log
+logs/
 
 # Distribution / packaging
 dist/

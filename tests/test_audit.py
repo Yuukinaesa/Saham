@@ -21,6 +21,8 @@ class TestCodeAudit(unittest.TestCase):
             'config.py',
             'utils.py',
             'Saham.py',
+            'logger.py',
+            'rate_limiter.py',
             'pages_analysis.py',
             'pages_ara_arb.py',
             'pages_calculators.py',
@@ -30,9 +32,13 @@ class TestCodeAudit(unittest.TestCase):
             'pages_trade_planner.py',
             'pages_warrant.py',
             'pwa_setup.py',
+            'state_manager.py',
             'tests/test_financial_logic.py',
+            'tests/test_security.py',
+            'tests/test_infrastructure.py',
             'requirements.txt',
-            'README.md'
+            'README.md',
+            'SECURITY.md',
         ]
         results = []
         for f in mandatory_files:

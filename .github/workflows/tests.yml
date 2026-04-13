@@ -35,9 +35,16 @@ jobs:
       - name: 🔒 Check for hardcoded secrets
         run: |
           echo "Scanning for hardcoded secrets..."
-          ! grep -rn "API_KEY\s*=\s*['\"]" --include="*.py" --exclude-dir=tests . || exit 1
-          ! grep -rn "SECRET_KEY\s*=\s*['\"]" --include="*.py" --exclude-dir=tests . || exit 1
-          ! grep -rn "PASSWORD\s*=\s*['\"]" --include="*.py" --exclude-dir=tests . || exit 1
+          FOUND=0
+          for pattern in "API_KEY\s*=\s*['\"]" "SECRET_KEY\s*=\s*['\"]" "PASSWORD\s*=\s*['\"]" "TOKEN\s*=\s*['\"]"; do
+            if grep -rn "$pattern" --include="*.py" --exclude-dir=tests --exclude-dir=.git . 2>/dev/null; then
+              FOUND=1
+            fi
+          done
+          if [ "$FOUND" -eq 1 ]; then
+            echo "FAIL: Hardcoded secrets found!"
+            exit 1
+          fi
           echo "No hardcoded secrets found ✅"
 
       - name: 📋 Validate requirements.txt
@@ -50,7 +57,7 @@ jobs:
                   if not line or line.startswith('#'):
                       continue
                   if '>=' in line and '<' not in line:
-                      print(f'WARNING: {line} has no upper bound')
+                      print(f'FAIL: {line} has no upper bound')
                       exit(1)
           print('All dependencies have proper version bounds ✅')
           "
@@ -77,3 +84,28 @@ jobs:
               exit(1)
           print('All Python files have valid syntax ✅')
           "
+
+      - name: 🛡️ Security headers check
+        run: |
+          echo "Verifying security configuration..."
+          python -c "
+          # Check Streamlit config has security settings
+          with open('.streamlit/config.toml') as f:
+              content = f.read()
+          assert 'enableXsrfProtection = true' in content, 'XSRF protection must be enabled'
+          assert 'enableCORS = true' in content, 'CORS must be enabled'
+          assert 'gatherUsageStats = false' in content, 'Usage stats must be disabled'
+          print('Security configuration verified ✅')
+          
+          # Check SECURITY.md exists and has incident response
+          with open('SECURITY.md') as f:
+              sec = f.read()
+          assert 'Incident Response' in sec, 'SECURITY.md must contain incident response plan'
+          assert 'OWASP' in sec, 'SECURITY.md must reference OWASP'
+          print('Security documentation verified ✅')
+          "
+
+      - name: 📊 Test coverage summary
+        run: |
+          echo "Test suite summary:"
+          python -m unittest discover -s tests 2>&1 | tail -3

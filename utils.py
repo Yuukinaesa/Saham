@@ -9,6 +9,9 @@ import yfinance as yf
 import numpy as np
 import requests
 
+from logger import get_logger, log_security_event, log_user_action
+from rate_limiter import yfinance_limiter
+
 # ── Security & Validation Constants ──────────────────────────
 MAX_SYMBOL_LENGTH = 10
 MAX_SYMBOLS_PER_REQUEST = 50
@@ -113,8 +116,14 @@ def apply_format_values(df: pd.DataFrame, formatters: Dict[str, callable]) -> pd
 
 def sanitize_stock_symbol(symbol: str) -> str:
     """Sanitize stock symbol to prevent injection. Only allows alphanumeric and dot."""
+    if not isinstance(symbol, str):
+        log_security_event('input_sanitized', f'Non-string symbol input rejected: {type(symbol).__name__}')
+        return ''
     cleaned = re.sub(r'[^a-zA-Z0-9.]', '', symbol)
-    return cleaned[:MAX_SYMBOL_LENGTH]  # Enforce max length
+    result = cleaned[:MAX_SYMBOL_LENGTH]  # Enforce max length
+    if result != symbol.strip():
+        log_security_event('input_sanitized', f'Symbol sanitized: "{symbol[:20]}" -> "{result}"')
+    return result
 
 
 def format_percent(value: float, decimals: int = 2) -> str:
@@ -217,6 +226,9 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
     data = {}
     for symbol in symbols:
         try:
+            if not yfinance_limiter.acquire():
+                log_security_event('rate_limit', f'Rate limit hit for {symbol}', 'WARNING')
+                continue
             if not symbol.endswith('.JK'):
                 symbol = f"{symbol}.JK"
             stock = yf.Ticker(symbol)
@@ -272,6 +284,9 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
     data: Dict[str, Dict[str, float]] = {}
     for symbol in symbols:
         try:
+            if not yfinance_limiter.acquire():
+                log_security_event('rate_limit', f'Rate limit hit for enhanced fetch: {symbol}', 'WARNING')
+                continue
             if not symbol.endswith('.JK'):
                 symbol = f"{symbol}.JK"
             stock = yf.Ticker(symbol)

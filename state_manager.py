@@ -80,20 +80,33 @@ def get_param(key: str, default=None):
     """
     Baca nilai dari URL query params.
     Otomatis convert ke tipe yang tepat berdasarkan nilai default.
+    
+    Security: Validates and caps string length to prevent injection.
     """
     try:
         val = st.query_params.get(key, None)
         if val is None:
             return default
+        # Security: Cap value length to prevent abuse
+        if isinstance(val, str) and len(val) > 200:
+            return default
         # Auto-cast berdasarkan tipe default
         if isinstance(default, bool):
             return val.lower() in ('true', '1', 'yes')
         if isinstance(default, int):
-            return int(val)
+            result = int(val)
+            # Guard against extreme values
+            if abs(result) > 10**15:
+                return default
+            return result
         if isinstance(default, float):
-            return float(val)
+            result = float(val)
+            import math
+            if math.isnan(result) or math.isinf(result):
+                return default
+            return result
         return val  # string
-    except Exception:
+    except (ValueError, TypeError, OverflowError):
         return default
 
 

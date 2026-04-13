@@ -1,12 +1,17 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-from utils import format_rupiah, format_percent
+from utils import format_rupiah, format_percent, sanitize_stock_symbol
 from state_manager import get_param, set_param
+from rate_limiter import yfinance_limiter
+from logger import log_security_event, log_user_action
 
 @st.cache_data(ttl=60, show_spinner=False)
 def get_realtime_price(symbol):
     try:
+        if not yfinance_limiter.acquire():
+            log_security_event('rate_limit', f'Rate limit hit for realtime: {symbol}', 'WARNING')
+            return None
         # Tambahkan .JK jika belum ada dan bukan kode komposit/indeks tertentu
         ticker_symbol = f"{symbol}.JK" if not symbol.endswith(".JK") and not symbol.startswith("^") else symbol
         
@@ -17,9 +22,10 @@ def get_realtime_price(symbol):
         if not history.empty:
             # Mengambil harga penutupan terakhir (bisa jadi harga saat ini jika pasar buka)
             current_price = history['Close'].iloc[-1]
+            log_user_action('price_fetch', f'{symbol} = {current_price}')
             return current_price
         return None
-    except Exception as e:
+    except Exception:
         return None
 
 def trade_planner_page():
@@ -44,7 +50,7 @@ def trade_planner_page():
     
     with col_input1:
         st.markdown("### 1. Data Saham & Modal")
-        symbol = st.text_input("Kode Saham (Contoh: BBRI, TLKM)", value=_sym).upper()
+        symbol = sanitize_stock_symbol(st.text_input("Kode Saham (Contoh: BBRI, TLKM)", value=_sym).upper())
         
         # Opsi Harga Manual
         use_manual_price = st.checkbox("Input Harga Entry Manual")
