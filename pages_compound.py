@@ -6,6 +6,8 @@ from utils import format_rupiah, format_csv_indonesia
 
 def calculate_compound_interest(firstm: float, rate: float, years: float, additional_investment: float = 0) -> pd.DataFrame:
     data = []
+    # Security: Cap years to prevent DoS (max 100 years = 1200 iterations)
+    years = max(0.1, min(years, 100))
     total_months = int(years * 12)
     amount = firstm
     for month in range(1, total_months + 1):

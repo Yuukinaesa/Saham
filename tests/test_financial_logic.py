@@ -3,6 +3,30 @@ import math
 import sys
 import os
 
+# Mock streamlit and heavy dependencies before importing application modules
+# This allows testing without the full dependency stack (CI/CD compatibility)
+from unittest.mock import MagicMock
+
+if 'streamlit' not in sys.modules:
+    mock_st = MagicMock()
+    mock_st.cache_data = lambda **kwargs: (lambda fn: fn)
+    sys.modules['streamlit'] = mock_st
+    sys.modules['streamlit_option_menu'] = MagicMock()
+
+for mod_name in ['yfinance', 'plotly', 'plotly.graph_objects', 'plotly.express',
+                 'plotly.subplots', 'feedparser', 'bs4', 'matplotlib']:
+    if mod_name not in sys.modules:
+        sys.modules[mod_name] = MagicMock()
+
+try:
+    import pandas
+except ImportError:
+    sys.modules['pandas'] = MagicMock()
+try:
+    import numpy
+except ImportError:
+    sys.modules['numpy'] = MagicMock()
+
 # Add parent directory to path to import modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 

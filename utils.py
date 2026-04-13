@@ -14,6 +14,39 @@ MAX_SYMBOL_LENGTH = 10
 MAX_SYMBOLS_PER_REQUEST = 50
 HTTP_REQUEST_TIMEOUT = 15  # seconds
 MAX_INPUT_VALUE = 1_000_000_000_000  # 1 Trillion Rupiah cap
+MAX_YEARS_COMPOUND = 100  # Max years for compound interest to prevent DoS
+MAX_STEPS_ARA_ARB = 20  # Max steps for ARA/ARB calculation
+
+
+def validate_numeric_input(value: float, min_val: float = 0, max_val: float = MAX_INPUT_VALUE, label: str = "Input") -> float:
+    """Validate and clamp numeric input to prevent overflow/DoS.
+    
+    Args:
+        value: The input value to validate.
+        min_val: Minimum allowed value.
+        max_val: Maximum allowed value.
+        label: Human-readable label for error messages.
+    
+    Returns:
+        The clamped value within [min_val, max_val].
+    """
+    try:
+        value = float(value)
+        if math.isnan(value) or math.isinf(value):
+            return min_val
+        return max(min_val, min(value, max_val))
+    except (ValueError, TypeError):
+        return min_val
+
+
+def sanitize_url(url: str) -> str:
+    """Validate URL to only allow http/https schemes. Prevents javascript: XSS."""
+    if not isinstance(url, str):
+        return '#'
+    url = url.strip()
+    if url.startswith(('http://', 'https://')):
+        return url
+    return '#'
 
 # Financial Logic Constants
 def get_tick_size(price: float) -> int:

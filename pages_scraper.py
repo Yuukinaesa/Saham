@@ -159,5 +159,5 @@ def stock_scraper_page() -> None:
 
                 # Debug/raw dihapus agar UI sederhana
             except Exception as e:
-                st.toast(f"🚨 Terjadi kesalahan: {str(e)}", icon="🚨")
-                st.error(f"Terjadi kesalahan: {str(e)}")
+                st.toast(f"🚨 Terjadi kesalahan saat memproses data.", icon="🚨")
+                st.error("Terjadi kesalahan saat memproses data. Periksa koneksi dan simbol saham Anda.")

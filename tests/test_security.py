@@ -42,6 +42,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utils import (
     sanitize_stock_symbol,
+    sanitize_url,
+    validate_numeric_input,
     format_rupiah,
     format_percent,
     format_ratio,
@@ -257,6 +259,63 @@ class TestValidationConstants(unittest.TestCase):
     def test_max_symbols_per_request_reasonable(self):
         self.assertGreater(MAX_SYMBOLS_PER_REQUEST, 5)
         self.assertLessEqual(MAX_SYMBOLS_PER_REQUEST, 100)
+
+
+class TestURLSanitization(unittest.TestCase):
+    """OWASP A03: XSS Prevention via URL Validation"""
+
+    def test_sanitize_url_allows_https(self):
+        url = "https://www.example.com/news"
+        self.assertEqual(sanitize_url(url), url)
+
+    def test_sanitize_url_allows_http(self):
+        url = "http://www.example.com/news"
+        self.assertEqual(sanitize_url(url), url)
+
+    def test_sanitize_url_blocks_javascript(self):
+        """Must block javascript: protocol to prevent XSS."""
+        self.assertEqual(sanitize_url("javascript:alert(1)"), '#')
+
+    def test_sanitize_url_blocks_data_uri(self):
+        self.assertEqual(sanitize_url("data:text/html,<script>alert(1)</script>"), '#')
+
+    def test_sanitize_url_blocks_empty(self):
+        self.assertEqual(sanitize_url(""), '#')
+
+    def test_sanitize_url_blocks_none(self):
+        self.assertEqual(sanitize_url(None), '#')
+
+    def test_sanitize_url_strips_whitespace(self):
+        url = "  https://example.com  "
+        self.assertEqual(sanitize_url(url), "https://example.com")
+
+
+class TestNumericInputValidation(unittest.TestCase):
+    """ISO 25010: Robustness - Input Boundary Validation"""
+
+    def test_validate_clamps_high_value(self):
+        result = validate_numeric_input(1e15, max_val=1e12)
+        self.assertEqual(result, 1e12)
+
+    def test_validate_clamps_negative(self):
+        result = validate_numeric_input(-100, min_val=0)
+        self.assertEqual(result, 0)
+
+    def test_validate_handles_nan(self):
+        result = validate_numeric_input(float('nan'))
+        self.assertEqual(result, 0)
+
+    def test_validate_handles_inf(self):
+        result = validate_numeric_input(float('inf'))
+        self.assertEqual(result, 0)
+
+    def test_validate_passes_valid(self):
+        result = validate_numeric_input(5000, min_val=0, max_val=10000)
+        self.assertEqual(result, 5000)
+
+    def test_validate_handles_string(self):
+        result = validate_numeric_input("not_a_number")
+        self.assertEqual(result, 0)
 
 
 if __name__ == '__main__':

@@ -39,6 +39,8 @@ def inject_pwa_support():
         <meta name="theme-color" content="#2563eb" />
         <meta http-equiv="X-Content-Type-Options" content="nosniff" />
         <meta name="referrer" content="strict-origin-when-cross-origin" />
+        <meta http-equiv="X-Frame-Options" content="DENY" />
+        <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=()" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Saham IDX" />
@@ -111,6 +113,8 @@ def inject_keepalive(interval_minutes: int = 5):
     Setiap `interval_minutes` menit, JS fetch URL app sendiri di background
     untuk mensimulasikan aktivitas dan mencegah idle timeout.
     """
+    # Security: Clamp interval to prevent abuse (1-30 minutes)
+    interval_minutes = max(1, min(30, int(interval_minutes)))
     interval_ms = interval_minutes * 60 * 1000
     keepalive_html = f"""
     <script>

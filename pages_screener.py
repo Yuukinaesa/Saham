@@ -171,8 +171,8 @@ def stock_screener_page() -> None:
 
                 # Hilangkan opsi debug/raw
             except Exception as e:
-                st.toast(f"🚨 Kesalahan saat mengekspor: {str(e)}", icon="🚨")
-                st.error(f"Terjadi kesalahan: {str(e)}")
+                st.toast(f"🚨 Kesalahan saat memproses screener.", icon="🚨")
+                st.error("Terjadi kesalahan saat memproses data. Periksa koneksi dan simbol saham Anda.")
 
             # Hindari render ganda pada run yang sama
             return

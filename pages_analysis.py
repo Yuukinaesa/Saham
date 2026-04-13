@@ -17,11 +17,14 @@ from bs4 import BeautifulSoup
 import re
 import time
 import feedparser
+import urllib.parse
+from utils import sanitize_url
 
 def get_kabarbursa_news(symbol):
     """Scrape KabarBursa via Google RSS using feedparser"""
     try:
-        url = f"https://news.google.com/rss/search?q={symbol}+site:kabarbursa.com&hl=id-ID&gl=ID&ceid=ID:id"
+        safe_symbol = urllib.parse.quote(symbol, safe='')
+        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:kabarbursa.com&hl=id-ID&gl=ID&ceid=ID:id"
         feed = feedparser.parse(url)
         news_items = []
         for entry in feed.entries[:5]:
@@ -42,7 +45,8 @@ def get_kabarbursa_news(symbol):
 def get_kontan_news(symbol):
     """Scrape Kontan via Google RSS using feedparser"""
     try:
-        url = f"https://news.google.com/rss/search?q={symbol}+site:kontan.co.id&hl=id-ID&gl=ID&ceid=ID:id"
+        safe_symbol = urllib.parse.quote(symbol, safe='')
+        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:kontan.co.id&hl=id-ID&gl=ID&ceid=ID:id"
         feed = feedparser.parse(url)
         news_items = []
         for entry in feed.entries[:5]:
@@ -63,7 +67,8 @@ def get_kontan_news(symbol):
 def get_cnbc_news(symbol):
     """Scrape CNBC via Google RSS using feedparser"""
     try:
-        url = f"https://news.google.com/rss/search?q={symbol}+site:cnbcindonesia.com&hl=id-ID&gl=ID&ceid=ID:id"
+        safe_symbol = urllib.parse.quote(symbol, safe='')
+        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:cnbcindonesia.com&hl=id-ID&gl=ID&ceid=ID:id"
         feed = feedparser.parse(url)
         news_items = []
         for entry in feed.entries[:5]:
@@ -86,11 +91,14 @@ def get_google_news_rss(symbol):
     news_items = []
     seen_links = set()
     
+    # URL-encode symbol for safety
+    safe_symbol = urllib.parse.quote(symbol, safe='')
+    
     # Reduced search terms to avoid timeouts
     search_terms = [
-        f"{symbol}+saham",
-        f"{symbol}+Indonesia",
-        f"PT+{symbol}",
+        f"{safe_symbol}+saham",
+        f"{safe_symbol}+Indonesia",
+        f"PT+{safe_symbol}",
     ]
     
     for query in search_terms:
@@ -125,7 +133,8 @@ def get_google_news_rss(symbol):
 def get_bisnis_news(symbol):
     """Scrape Bisnis.com via Google RSS"""
     try:
-        url = f"https://news.google.com/rss/search?q={symbol}+site:bisnis.com&hl=id-ID&gl=ID&ceid=ID:id"
+        safe_symbol = urllib.parse.quote(symbol, safe='')
+        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:bisnis.com&hl=id-ID&gl=ID&ceid=ID:id"
         feed = feedparser.parse(url)
         news_items = []
         for entry in feed.entries[:7]:
@@ -146,7 +155,8 @@ def get_bisnis_news(symbol):
 def get_detik_finance_news(symbol):
     """Scrape Detik via Google RSS"""
     try:
-        url = f"https://news.google.com/rss/search?q={symbol}+site:detik.com&hl=id-ID&gl=ID&ceid=ID:id"
+        safe_symbol = urllib.parse.quote(symbol, safe='')
+        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:detik.com&hl=id-ID&gl=ID&ceid=ID:id"
         feed = feedparser.parse(url)
         news_items = []
         for entry in feed.entries[:7]:
@@ -167,7 +177,8 @@ def get_detik_finance_news(symbol):
 def get_idx_channel_news(symbol):
     """Scrape IDX via Google RSS"""
     try:
-        url = f"https://news.google.com/rss/search?q={symbol}+site:idx.co.id&hl=id-ID&gl=ID&ceid=ID:id"
+        safe_symbol = urllib.parse.quote(symbol, safe='')
+        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:idx.co.id&hl=id-ID&gl=ID&ceid=ID:id"
         feed = feedparser.parse(url)
         news_items = []
         for entry in feed.entries[:5]:
@@ -188,7 +199,8 @@ def get_idx_channel_news(symbol):
 def get_investing_indonesia_news(symbol):
     """Scrape Investing.com via Google RSS"""
     try:
-        url = f"https://news.google.com/rss/search?q={symbol}+site:id.investing.com&hl=id-ID&gl=ID&ceid=ID:id"
+        safe_symbol = urllib.parse.quote(symbol, safe='')
+        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:id.investing.com&hl=id-ID&gl=ID&ceid=ID:id"
         feed = feedparser.parse(url)
         news_items = []
         for entry in feed.entries[:5]:
