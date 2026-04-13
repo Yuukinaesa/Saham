@@ -223,18 +223,54 @@ def format_large_number(value: float) -> str:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
+    logger = get_logger()
     data = {}
-    for symbol in symbols:
+    failed_symbols = []
+    for i, symbol in enumerate(symbols):
         try:
             if not yfinance_limiter.acquire():
                 log_security_event('rate_limit', f'Rate limit hit for {symbol}', 'WARNING')
+                failed_symbols.append((symbol, 'Rate limited'))
                 continue
             if not symbol.endswith('.JK'):
                 symbol = f"{symbol}.JK"
+
+            # Small delay between requests to avoid Yahoo throttling on cloud
+            if i > 0:
+                time.sleep(0.5)
+
             stock = yf.Ticker(symbol)
-            info = stock.info
-            if not info:
+            info = {}
+            try:
+                info = stock.info or {}
+            except Exception as e:
+                logger.warning(f"yfinance info failed for {symbol}: {e}")
+
+            # If info is empty or only has minimal keys, try fast_info as fallback
+            if not info or len(info) <= 1:
+                logger.warning(f"Empty info for {symbol}, trying fast_info fallback")
+                try:
+                    fi = stock.fast_info
+                    current_price = getattr(fi, 'last_price', None) or getattr(fi, 'regular_market_previous_close', None)
+                    if current_price and current_price > 0:
+                        data[symbol] = {
+                            'Symbol': symbol.replace('.JK', ''),
+                            'Current Price': float(current_price),
+                            'Price/Book (PBVR)': 0,
+                            'Trailing P/E (PER)': 0,
+                            'Total Debt/Equity (mrq) (DER)': 0,
+                            'Return on Equity (%) (ROE)': 0,
+                            'Diluted EPS (ttm) (EPS)': 0,
+                            'Forward Annual Dividend Rate (DPS)': 0,
+                            'Forward Annual Dividend Yield (%)': 0,
+                        }
+                        logger.info(f"Got price for {symbol} via fast_info: {current_price}")
+                        continue
+                except Exception as e2:
+                    logger.warning(f"fast_info also failed for {symbol}: {e2}")
+                failed_symbols.append((symbol, 'Empty info from Yahoo'))
                 continue
+
             current_price = None
             price_keys = ['regularMarketPrice', 'regularMarketPreviousClose', 'currentPrice', 'previousClose']
             for key in price_keys:
@@ -242,6 +278,7 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
                     current_price = info[key]
                     break
             if current_price is None:
+                failed_symbols.append((symbol, 'No price data in response'))
                 continue
             def safe_float(value, default=0):
                 if value is None or pd.isna(value):
@@ -261,12 +298,20 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
                 'Trailing P/E (PER)': trailing_pe,
                 'Total Debt/Equity (mrq) (DER)': debt_to_equity,
                 'Return on Equity (%) (ROE)': roe,
-                'Diluted EPS (ttm) (EPS)': round(info.get('trailingEps', 0)),
-                'Forward Annual Dividend Rate (DPS)': round(info.get('dividendRate', 0)),
+                'Diluted EPS (ttm) (EPS)': round(safe_float(info.get('trailingEps', 0))),
+                'Forward Annual Dividend Rate (DPS)': round(safe_float(info.get('dividendRate', 0))),
                 'Forward Annual Dividend Yield (%)': forward_dividend_yield,
             }
-        except Exception:
+        except Exception as e:
+            logger.error(f"Exception fetching {symbol}: {type(e).__name__}: {e}")
+            failed_symbols.append((symbol, str(e)[:100]))
             continue
+
+    if failed_symbols:
+        logger.warning(f"Failed symbols: {failed_symbols}")
+    if not data and failed_symbols:
+        logger.error(f"ALL symbols failed! Details: {failed_symbols}")
+
     return data
 
 
@@ -281,17 +326,53 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
     Float Shares, Institutional/Insider Ownership %, PBV, PER, ROE, ROA,
     Net Income, Free Cash Flow, Cash from Operations, Total Assets/Equity/Liabilities.
     """
+    logger = get_logger()
     data: Dict[str, Dict[str, float]] = {}
-    for symbol in symbols:
+    failed_symbols = []
+    for i, symbol in enumerate(symbols):
         try:
             if not yfinance_limiter.acquire():
                 log_security_event('rate_limit', f'Rate limit hit for enhanced fetch: {symbol}', 'WARNING')
+                failed_symbols.append((symbol, 'Rate limited'))
                 continue
             if not symbol.endswith('.JK'):
                 symbol = f"{symbol}.JK"
+
+            # Small delay between requests to avoid Yahoo throttling
+            if i > 0:
+                time.sleep(0.5)
+
             stock = yf.Ticker(symbol)
-            info = stock.info
-            if not info or len(info) == 0:
+            info = {}
+            try:
+                info = stock.info or {}
+            except Exception as e:
+                logger.warning(f"yfinance info failed for enhanced {symbol}: {e}")
+
+            if not info or len(info) <= 1:
+                logger.warning(f"Empty info for enhanced {symbol}, trying fast_info fallback")
+                try:
+                    fi = stock.fast_info
+                    current_price = getattr(fi, 'last_price', None) or getattr(fi, 'regular_market_previous_close', None)
+                    market_cap = getattr(fi, 'market_cap', 0)
+                    if current_price and current_price > 0:
+                        data[symbol] = {
+                            'Symbol': symbol.replace('.JK', ''),
+                            'Current Price': float(current_price),
+                            'Market Cap': float(market_cap) if market_cap else 0,
+                            'Shares Outstanding': 0, 'Float Shares': 0,
+                            'Institutional Ownership %': 0, 'Insider Ownership %': 0,
+                            'Price/Book (PBVR)': 0, 'Trailing P/E (PER)': 0,
+                            'Return on Equity (%) (ROE)': 0, 'Return on Assets (%) (ROA)': 0,
+                            'Net Income': 0, 'Cash from Operations': 0,
+                            'Free Cash Flow': 0, 'Total Assets': 0,
+                            'Total Equity': 0, 'Total Liabilities': 0,
+                            'EPS': 0, 'Dividend Yield %': 0,
+                        }
+                        continue
+                except Exception as e2:
+                    logger.warning(f"fast_info also failed for enhanced {symbol}: {e2}")
+                failed_symbols.append((symbol, 'Empty info from Yahoo'))
                 continue
 
             # Determine a valid current price using several candidates
@@ -305,6 +386,7 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
                 except Exception:
                     pass
             if current_price is None:
+                failed_symbols.append((symbol, 'No price data'))
                 continue
 
             def safe_float(value, default=0.0):
@@ -338,8 +420,14 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
                 'EPS': safe_float(info.get('trailingEps', 0)),
                 'Dividend Yield %': safe_float(info.get('dividendYield', 0)) * 100,
             }
-        except Exception:
+        except Exception as e:
+            logger.error(f"Exception in enhanced fetch for {symbol}: {type(e).__name__}: {e}")
+            failed_symbols.append((symbol, str(e)[:100]))
             continue
+
+    if failed_symbols:
+        logger.warning(f"Enhanced fetch failed symbols: {failed_symbols}")
+
     return data
 
 

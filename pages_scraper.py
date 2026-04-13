@@ -3,6 +3,7 @@ import streamlit as st
 from state_manager import save_config
 
 from config import DEFAULT_SYMBOLS
+from logger import get_logger
 from utils import (
     MAX_SYMBOLS_PER_REQUEST,
     sanitize_stock_symbol,
@@ -45,8 +46,23 @@ def stock_scraper_page() -> None:
                 ]
                 stocks_data = fetch_stock_data(symbols_list)
                 if not stocks_data:
+                    logger = get_logger()
+                    logger.error(f"Scraper: All symbols returned empty. Attempted: {symbols_list}")
                     st.toast("🚨 Gagal memuat data saham untuk Scraper!", icon="🚨")
                     st.error("Tidak ada data saham yang berhasil diambil")
+                    with st.expander("🔍 Detail Diagnostik", expanded=True):
+                        st.markdown(f"**Simbol yang dicoba:** `{', '.join(symbols_list)}`")
+                        st.markdown("""
+**Kemungkinan penyebab:**
+1. **Yahoo Finance memblokir permintaan** — Streamlit Cloud sering di-rate-limit oleh Yahoo
+2. **Simbol tidak valid** — Pastikan kode saham benar (contoh: BBCA, TLKM, BMRI)
+3. **yfinance perlu diperbarui** — Versi lama mungkin sudah tidak kompatibel
+
+**Solusi:**
+- Coba lagi dalam 1-2 menit (rate limit biasanya sementara)
+- Kurangi jumlah simbol yang diminta
+- Coba akses dari jaringan berbeda
+                        """)
                     return
 
                 df = pd.DataFrame(stocks_data).T
@@ -159,5 +175,7 @@ def stock_scraper_page() -> None:
 
                 # Debug/raw dihapus agar UI sederhana
             except Exception as e:
+                logger = get_logger()
+                logger.error(f"Scraper page exception: {type(e).__name__}: {e}")
                 st.toast(f"🚨 Terjadi kesalahan saat memproses data.", icon="🚨")
-                st.error("Terjadi kesalahan saat memproses data. Periksa koneksi dan simbol saham Anda.")
+                st.error(f"Terjadi kesalahan saat memproses data: {type(e).__name__}. Periksa koneksi dan simbol saham Anda.")
