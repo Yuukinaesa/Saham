@@ -15,7 +15,7 @@ from pages_analysis import analysis_dashboard_page
 from pages_market_overview import market_overview_page
 from pages_technical_tools import technical_tools_page
 from pages_right_issue import right_issue_calculator_page
-from state_manager import load_config, get_param, set_param
+from state_manager import get_param, set_param
 
 def apply_global_css() -> None:
     """Menerapkan styling global premium dengan Google Fonts (Inter) dan desain modern."""
@@ -195,8 +195,6 @@ def main() -> None:
         layout="wide",
         initial_sidebar_state="expanded",
     )
-    # Load persistence
-    load_config()
     
     apply_global_css()
     inject_pwa_support()    # Inject PWA Manifest and Tags

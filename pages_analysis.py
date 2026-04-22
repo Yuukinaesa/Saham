@@ -1188,10 +1188,13 @@ def render_news_card(item, show_sentiment=False):
         else:
             badge_html = f"<span style='background: #9ca3af20; color: #9ca3af; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;'>⚪ NETRAL</span>"
     
+    # Security: HTML-escape link for safe attribute embedding
+    safe_link = html_module.escape(link, quote=True)
+    
     st.markdown(f"""
     <div style='background-color: var(--secondary-background-color); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(128,128,128,0.2);'>
         <div style='margin-bottom: 5px;'>{badge_html}</div>
-        <a href='{link}' target='_blank' rel='noopener noreferrer' style='text-decoration: none; color: var(--text-color); font-weight: 600; font-size: 15px;'>{title}</a>
+        <a href='{safe_link}' target='_blank' rel='noopener noreferrer' style='text-decoration: none; color: var(--text-color); font-weight: 600; font-size: 15px;'>{title}</a>
         <div style='display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; opacity: 0.7;'>
             <span>📰 {publisher}</span>
         </div>

@@ -37,7 +37,7 @@ def stock_screener_page() -> None:
     # Tidak ada checkbox debug di screener
 
     if st.button('Screener Saham', key='screener_data'):
-        set_param("sc_syms", symbols.strip())  # Simpan ke URL
+        set_param("sc_syms", symbols.strip()[:500])  # Simpan ke URL (capped)
         with st.spinner('Menganalisis saham...'):
             try:
                 raw_symbols = [s.strip() for s in symbols.split(',') if s.strip()]

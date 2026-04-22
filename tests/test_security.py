@@ -54,6 +54,7 @@ from utils import (
     get_tick_size,
     get_ara_arb_percentage,
     round_price_to_tick,
+    _safe_float,
     MAX_SYMBOL_LENGTH,
     MAX_SYMBOLS_PER_REQUEST,
 )
@@ -316,6 +317,37 @@ class TestNumericInputValidation(unittest.TestCase):
     def test_validate_handles_string(self):
         result = validate_numeric_input("not_a_number")
         self.assertEqual(result, 0)
+
+
+class TestSafeFloat(unittest.TestCase):
+    """Tests for the module-level _safe_float utility."""
+
+    def test_normal_values(self):
+        self.assertEqual(_safe_float(42), 42.0)
+        self.assertEqual(_safe_float(3.14), 3.14)
+
+    def test_none_returns_default(self):
+        self.assertEqual(_safe_float(None), 0.0)
+        self.assertEqual(_safe_float(None, default=99), 99)
+
+    def test_nan_returns_default(self):
+        self.assertEqual(_safe_float(float('nan')), 0.0)
+
+    def test_inf_returns_default(self):
+        self.assertEqual(_safe_float(float('inf')), 0.0)
+        self.assertEqual(_safe_float(float('-inf')), 0.0)
+
+    def test_string_returns_default(self):
+        self.assertEqual(_safe_float("not_a_number"), 0.0)
+
+    def test_numeric_string(self):
+        self.assertEqual(_safe_float("123.45"), 123.45)
+
+    def test_zero(self):
+        self.assertEqual(_safe_float(0), 0.0)
+
+    def test_negative(self):
+        self.assertEqual(_safe_float(-500), -500.0)
 
 
 if __name__ == '__main__':

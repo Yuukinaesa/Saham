@@ -215,5 +215,47 @@ class TestCompoundInterestBounds(unittest.TestCase):
         self.assertGreaterEqual(len(df), 1)
 
 
+class TestQueryParamHardening(unittest.TestCase):
+    """Additional query param security tests."""
+
+    def test_get_param_rejects_control_characters(self):
+        """Query params with control characters (null byte, etc.) must be rejected."""
+        from state_manager import get_param
+        # Simulate a value with null byte
+        val_with_null = "BBCA\x00HACK"
+        mock_params = MagicMock()
+        mock_params.get = MagicMock(return_value=val_with_null)
+        with patch.object(sys.modules['streamlit'], 'query_params', mock_params):
+            result = get_param('test_key', 'default')
+            self.assertEqual(result, 'default')
+
+    def test_get_param_float_rejects_nan(self):
+        """Float params that parse to NaN must return default."""
+        from state_manager import get_param
+        mock_params = MagicMock()
+        mock_params.get = MagicMock(return_value="nan")
+        with patch.object(sys.modules['streamlit'], 'query_params', mock_params):
+            result = get_param('price', 100.0)
+            self.assertEqual(result, 100.0)
+
+    def test_get_param_float_rejects_inf(self):
+        """Float params that parse to Inf must return default."""
+        from state_manager import get_param
+        mock_params = MagicMock()
+        mock_params.get = MagicMock(return_value="inf")
+        with patch.object(sys.modules['streamlit'], 'query_params', mock_params):
+            result = get_param('price', 100.0)
+            self.assertEqual(result, 100.0)
+
+    def test_get_param_int_rejects_extreme(self):
+        """Integer params > 10^15 must return default."""
+        from state_manager import get_param
+        mock_params = MagicMock()
+        mock_params.get = MagicMock(return_value="9999999999999999")
+        with patch.object(sys.modules['streamlit'], 'query_params', mock_params):
+            result = get_param('amount', 1000)
+            self.assertEqual(result, 1000)
+
+
 if __name__ == '__main__':
     unittest.main()

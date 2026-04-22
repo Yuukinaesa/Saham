@@ -51,6 +51,8 @@ def trade_planner_page():
     with col_input1:
         st.markdown("### 1. Data Saham & Modal")
         symbol = sanitize_stock_symbol(st.text_input("Kode Saham (Contoh: BBRI, TLKM)", value=_sym).upper())
+        if not symbol:
+            st.warning("Masukkan kode saham yang valid.")
         
         # Opsi Harga Manual
         use_manual_price = st.checkbox("Input Harga Entry Manual")
@@ -106,6 +108,9 @@ def trade_planner_page():
             # 2. Stop Loss Price & Take Profit Price (Technical levels are same regardless of money logic)
             stop_loss_price = int(current_price * (1 - (stop_loss_pct / 100)))
             price_risk_per_share = current_price - stop_loss_price
+            if price_risk_per_share <= 0:
+                st.warning("⚠️ Stop loss terlalu kecil — tidak ada ruang resiko. Naikkan persen SL.")
+                st.stop()
             price_reward_per_share = price_risk_per_share * rrr
             take_profit_price = int(current_price + price_reward_per_share)
 

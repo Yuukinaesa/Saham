@@ -26,7 +26,7 @@ def fetch_market_overview(symbols):
         df = None
         for attempt in range(MAX_RETRY + 1):
             try:
-                df = yf.download(tickers, period="2d", group_by="ticker", progress=False, threads=False)
+                df = yf.download(tickers, period="2d", group_by="ticker", progress=False, threads=False, timeout=15)
                 if df is not None and not df.empty:
                     break
             except Exception:

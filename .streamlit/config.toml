@@ -9,6 +9,12 @@ textColor="#000000"
 enableCORS = true
 enableXsrfProtection = true
 maxUploadSize = 5
+# Restrict static file serving to prevent path traversal
+enableStaticServing = false
 
 [browser]
 gatherUsageStats = false
+
+[runner]
+# Prevent accidental write-access to source files
+fastReruns = true

@@ -21,6 +21,22 @@ MAX_YEARS_COMPOUND = 100  # Max years for compound interest to prevent DoS
 MAX_STEPS_ARA_ARB = 20  # Max steps for ARA/ARB calculation
 
 
+def _safe_float(value, default=0.0):
+    """Safely convert a value to float, returning default for None/NaN/Inf.
+    
+    Used across data-fetching functions to guard against bad upstream data.
+    """
+    try:
+        if value is None:
+            return default
+        val = float(value)
+        if math.isnan(val) or math.isinf(val):
+            return default
+        return val
+    except (ValueError, TypeError):
+        return default
+
+
 def validate_numeric_input(value: float, min_val: float = 0, max_val: float = MAX_INPUT_VALUE, label: str = "Input") -> float:
     """Validate and clamp numeric input to prevent overflow/DoS.
     
@@ -280,17 +296,11 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
             if current_price is None:
                 failed_symbols.append((symbol, 'No price data in response'))
                 continue
-            def safe_float(value, default=0):
-                if value is None or pd.isna(value):
-                    return default
-                if value == float('inf') or value == float('-inf'):
-                    return default
-                return float(value)
-            forward_dividend_yield = safe_float(info.get('dividendYield', 0))
-            roe = safe_float(info.get('returnOnEquity', 0))
-            trailing_pe = safe_float(info.get('trailingPE', 0))
-            price_to_book = safe_float(info.get('priceToBook', 0))
-            debt_to_equity = safe_float(info.get('debtToEquity', 0))
+            forward_dividend_yield = _safe_float(info.get('dividendYield', 0))
+            roe = _safe_float(info.get('returnOnEquity', 0))
+            trailing_pe = _safe_float(info.get('trailingPE', 0))
+            price_to_book = _safe_float(info.get('priceToBook', 0))
+            debt_to_equity = _safe_float(info.get('debtToEquity', 0))
             data[symbol] = {
                 'Symbol': symbol.replace('.JK', ''),
                 'Current Price': current_price,
@@ -298,8 +308,8 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
                 'Trailing P/E (PER)': trailing_pe,
                 'Total Debt/Equity (mrq) (DER)': debt_to_equity,
                 'Return on Equity (%) (ROE)': roe,
-                'Diluted EPS (ttm) (EPS)': round(safe_float(info.get('trailingEps', 0))),
-                'Forward Annual Dividend Rate (DPS)': round(safe_float(info.get('dividendRate', 0))),
+                'Diluted EPS (ttm) (EPS)': round(_safe_float(info.get('trailingEps', 0))),
+                'Forward Annual Dividend Rate (DPS)': round(_safe_float(info.get('dividendRate', 0))),
                 'Forward Annual Dividend Yield (%)': forward_dividend_yield,
             }
         except Exception as e:
@@ -389,36 +399,26 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
                 failed_symbols.append((symbol, 'No price data'))
                 continue
 
-            def safe_float(value, default=0.0):
-                try:
-                    if value is None or pd.isna(value):
-                        return default
-                    if value == float('inf') or value == float('-inf'):
-                        return default
-                    return float(value)
-                except Exception:
-                    return default
-
             data[symbol] = {
                 'Symbol': symbol.replace('.JK', ''),
                 'Current Price': current_price,
-                'Market Cap': safe_float(info.get('marketCap', 0)),
-                'Shares Outstanding': safe_float(info.get('sharesOutstanding', 0)),
-                'Float Shares': safe_float(info.get('floatShares', 0)),
-                'Institutional Ownership %': safe_float(info.get('institutionOwnership', 0)) * 100,
-                'Insider Ownership %': safe_float(info.get('heldPercentInsiders', 0)) * 100,
-                'Price/Book (PBVR)': safe_float(info.get('priceToBook', 0)),
-                'Trailing P/E (PER)': safe_float(info.get('trailingPE', 0)),
-                'Return on Equity (%) (ROE)': safe_float(info.get('returnOnEquity', 0)) * 100,
-                'Return on Assets (%) (ROA)': safe_float(info.get('returnOnAssets', 0)) * 100,
-                'Net Income': safe_float(info.get('netIncomeToCommon', 0)),
-                'Cash from Operations': safe_float(info.get('operatingCashflow', 0)),
-                'Free Cash Flow': safe_float(info.get('freeCashflow', info.get('freeCashFlow', info.get('operatingCashflow', 0)))),
-                'Total Assets': safe_float(info.get('totalAssets', 0)),
-                'Total Equity': safe_float(info.get('totalStockholderEquity', 0)),
-                'Total Liabilities': safe_float(info.get('totalDebt', 0)),
-                'EPS': safe_float(info.get('trailingEps', 0)),
-                'Dividend Yield %': safe_float(info.get('dividendYield', 0)) * 100,
+                'Market Cap': _safe_float(info.get('marketCap', 0)),
+                'Shares Outstanding': _safe_float(info.get('sharesOutstanding', 0)),
+                'Float Shares': _safe_float(info.get('floatShares', 0)),
+                'Institutional Ownership %': _safe_float(info.get('institutionOwnership', 0)) * 100,
+                'Insider Ownership %': _safe_float(info.get('heldPercentInsiders', 0)) * 100,
+                'Price/Book (PBVR)': _safe_float(info.get('priceToBook', 0)),
+                'Trailing P/E (PER)': _safe_float(info.get('trailingPE', 0)),
+                'Return on Equity (%) (ROE)': _safe_float(info.get('returnOnEquity', 0)) * 100,
+                'Return on Assets (%) (ROA)': _safe_float(info.get('returnOnAssets', 0)) * 100,
+                'Net Income': _safe_float(info.get('netIncomeToCommon', 0)),
+                'Cash from Operations': _safe_float(info.get('operatingCashflow', 0)),
+                'Free Cash Flow': _safe_float(info.get('freeCashflow', info.get('freeCashFlow', info.get('operatingCashflow', 0)))),
+                'Total Assets': _safe_float(info.get('totalAssets', 0)),
+                'Total Equity': _safe_float(info.get('totalStockholderEquity', 0)),
+                'Total Liabilities': _safe_float(info.get('totalDebt', 0)),
+                'EPS': _safe_float(info.get('trailingEps', 0)),
+                'Dividend Yield %': _safe_float(info.get('dividendYield', 0)) * 100,
             }
         except Exception as e:
             logger.error(f"Exception in enhanced fetch for {symbol}: {type(e).__name__}: {e}")
