@@ -1,9 +1,8 @@
 from typing import Dict, List, Tuple
-import pandas as pd
 import streamlit as st
 
 from config import PLATFORM_CONFIG
-from utils import format_csv_indonesia, format_percent, format_rupiah, get_tick_size, get_ara_arb_percentage, round_price_to_tick
+from utils import format_rupiah, get_tick_size, get_ara_arb_percentage, round_price_to_tick
 
 
 def calculate_preset_ara_beruntun(harga_dasar: float, is_acceleration: bool = False) -> List[Dict]:

@@ -85,7 +85,8 @@ def get_tick_size(price: float) -> int:
 
 def get_ara_arb_percentage(price: float, board: str = 'regular') -> float:
     """
-    Get ARA/ARB Percentage limit based on price and board type.
+    Get ARA Percentage limit based on price and board type.
+    Note: ARB for regular board is flat 15% per BEI Kep-00003/BEI/04-2025.
     """
     if board == 'acceleration':
         if price <= 10:
