@@ -79,7 +79,7 @@ def calculate_preset_ara_beruntun(harga_dasar: float, is_acceleration: bool = Fa
             harga_sekarang = harga_baru
             
     return sequence
-def calculate_ara_arb_sequence(harga_dasar: float, is_acceleration: bool = False, max_steps: int = 10, arb_mode: str = "Simetris") -> Tuple[List[Dict], List[Dict]]:
+def calculate_ara_arb_sequence(harga_dasar: float, is_acceleration: bool = False, max_steps: int = 10) -> Tuple[List[Dict], List[Dict]]:
     # Calculate ARA sequence
     ara_sequence = []
     harga_ara_sekarang = harga_dasar
@@ -122,7 +122,9 @@ def calculate_ara_arb_sequence(harga_dasar: float, is_acceleration: bool = False
         if is_acceleration and harga_arb_sekarang <= 10:
              harga_arb_baru = max(1, harga_arb_sekarang - 1)
         else:
-            if arb_mode == "Asimetris (15%)" and not is_acceleration:
+            # ARB for regular board: flat 15% (BEI regulation effective 8 April 2025)
+            # ARB for acceleration board: 10% (same as ARA)
+            if not is_acceleration:
                 pct = 0.15
             else:
                 pct = get_ara_arb_percentage(harga_arb_sekarang, board_type)
@@ -164,10 +166,8 @@ def ara_arb_calculator_page() -> None:
         board_type = st.radio("Pilih Jenis Papan", ["Papan Utama/Pengembangan", "Papan Akselerasi"], index=0, horizontal=True)
         is_acceleration = board_type == "Papan Akselerasi"
         
-        arb_mode = "Simetris"
         if not is_acceleration:
-            st.markdown("<p style='font-size:14px; margin-bottom:4px; font-weight:500;'>Mode ARB</p>", unsafe_allow_html=True)
-            arb_mode = st.radio("Mode ARB", ["Simetris (Sesuai ARA)", "Asimetris (15%)"], index=0, horizontal=True, label_visibility="collapsed")
+            st.markdown("<p style='font-size:13px; margin-bottom:4px; color:var(--text-color); opacity:0.7;'>ARB: 15% (seragam, sesuai regulasi BEI efektif 8 April 2025)</p>", unsafe_allow_html=True)
             
         st.markdown("<p style='font-size:14px; margin-bottom:4px; margin-top:12px; font-weight:500;'>Mode Kalkulator</p>", unsafe_allow_html=True)
         calc_mode = st.radio("Mode Kalkulator", ["Manual (Berdasarkan Langkah)", "Preset Skenario (ARA Beruntun, FCA)"], index=0, horizontal=True, label_visibility="collapsed")
@@ -370,7 +370,7 @@ def ara_arb_calculator_page() -> None:
 """, unsafe_allow_html=True)
             
         else:
-            ara_list, arb_list = calculate_ara_arb_sequence(harga_penutupan, is_acceleration, max_steps, arb_mode)
+            ara_list, arb_list = calculate_ara_arb_sequence(harga_penutupan, is_acceleration, max_steps)
             
             # --- Compute initial (base) values for header ---
             base_gross = harga_penutupan * jumlah_lot * 100
@@ -428,10 +428,9 @@ def ara_arb_calculator_page() -> None:
                             fee_beli_val = gross_beli * fee_beli_final
                             tb = gross_beli + fee_beli_val
                             pl = nv - tb
-                            plp = (pl / tb * 100) if tb > 0 else 0
                             pc_bg = "rgba(16,185,129,0.12)" if pl >= 0 else "rgba(239,68,68,0.12)"
                             pc_text = "#059669" if pl >= 0 else "#dc2626"
-                            pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)} ({plp:+.2f}%)</div>"
+                            pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)}</div>"
                             total_fee = fee_beli_val + fee_jual_val
                             if total_fee > 0:
                                 fee_part = f"""<div style='display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.75rem; flex-wrap:wrap;'>
@@ -491,10 +490,9 @@ def ara_arb_calculator_page() -> None:
                             fee_beli_val = gross_beli * fee_beli_final
                             tb = gross_beli + fee_beli_val
                             pl = nv - tb
-                            plp = (pl / tb * 100) if tb > 0 else 0
                             pc_bg = "rgba(16,185,129,0.12)" if pl >= 0 else "rgba(239,68,68,0.12)"
                             pc_text = "#059669" if pl >= 0 else "#dc2626"
-                            pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)} ({plp:+.2f}%)</div>"
+                            pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)}</div>"
                             total_fee = fee_beli_val + fee_jual_val
                             if total_fee > 0:
                                 fee_part = f"""<div style='display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.75rem; flex-wrap:wrap;'>
