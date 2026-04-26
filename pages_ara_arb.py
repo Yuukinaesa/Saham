@@ -284,10 +284,14 @@ def ara_arb_calculator_page() -> None:
                 sub_html = ""
                 if not is_suspend:
                     gv = hv * jumlah_lot * 100
-                    nv = gv * (1 - fee_jual_final)
+                    fee_jual_val = gv * fee_jual_final
+                    nv = gv - fee_jual_val
                     pl_part = ""
+                    fee_part = ""
                     if harga_beli > 0:
-                        tb = (harga_beli * jumlah_lot * 100) * (1 + fee_beli_final)
+                        gross_beli = harga_beli * jumlah_lot * 100
+                        fee_beli_val = gross_beli * fee_beli_final
+                        tb = gross_beli + fee_beli_val
                         pl = nv - tb
                         plp = (pl / tb * 100) if tb > 0 else 0
                         
@@ -300,6 +304,23 @@ def ara_arb_calculator_page() -> None:
                             pc_text = "#059669" if pl >= 0 else "#dc2626"
                             
                         pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)}</div>"
+                        
+                        # Fee breakdown chips
+                        total_fee = fee_beli_val + fee_jual_val
+                        if total_fee > 0:
+                            fb_bg = "rgba(255,255,255,0.1)" if is_highlight else "#fef3c7"
+                            fb_text = "rgba(255,255,255,0.85)" if is_highlight else "#92400e"
+                            fee_part = f"""<div style='display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.75rem; flex-wrap:wrap;'>
+<div style='background:{fb_bg}; color:{fb_text}; padding:2px 8px; border-radius:4px;'>Fee Beli {format_rupiah(fee_beli_val)}</div>
+<div style='background:{fb_bg}; color:{fb_text}; padding:2px 8px; border-radius:4px;'>Fee Jual {format_rupiah(fee_jual_val)}</div>
+<div style='background:{fb_bg}; color:{fb_text}; padding:2px 8px; border-radius:4px; font-weight:600;'>Total Fee {format_rupiah(total_fee)}</div>
+</div>"""
+                    elif fee_jual_val > 0:
+                        fb_bg = "rgba(255,255,255,0.1)" if is_highlight else "#fef3c7"
+                        fb_text = "rgba(255,255,255,0.85)" if is_highlight else "#92400e"
+                        fee_part = f"""<div style='display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.75rem; flex-wrap:wrap;'>
+<div style='background:{fb_bg}; color:{fb_text}; padding:2px 8px; border-radius:4px;'>Fee Jual {format_rupiah(fee_jual_val)}</div>
+</div>"""
                     
                     # Chip styling for Net
                     sc_bg = "rgba(255,255,255,0.15)" if is_highlight else "#f1f5f9"
@@ -311,6 +332,7 @@ def ara_arb_calculator_page() -> None:
 <div style='background:{sc_bg}; color:{sc_text}; border:{sc_border}; padding:3px 9px; border-radius:6px; font-weight:700;'>Net {format_rupiah(nv)}</div>
 {pl_part}
 </div>
+{fee_part}
 """
                 
                 # Border radius
@@ -397,21 +419,37 @@ def ara_arb_calculator_page() -> None:
                         p_str = f"{p_str_val}%"
                         
                         gv = hv * jumlah_lot * 100
-                        nv = gv * (1 - fee_jual_final)
+                        fee_jual_val = gv * fee_jual_final
+                        nv = gv - fee_jual_val
                         pl_part = ""
+                        fee_part = ""
                         if harga_beli > 0:
-                            tb = (harga_beli * jumlah_lot * 100) * (1 + fee_beli_final)
+                            gross_beli = harga_beli * jumlah_lot * 100
+                            fee_beli_val = gross_beli * fee_beli_final
+                            tb = gross_beli + fee_beli_val
                             pl = nv - tb
                             plp = (pl / tb * 100) if tb > 0 else 0
                             pc_bg = "rgba(16,185,129,0.12)" if pl >= 0 else "rgba(239,68,68,0.12)"
                             pc_text = "#059669" if pl >= 0 else "#dc2626"
                             pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)} ({plp:+.2f}%)</div>"
+                            total_fee = fee_beli_val + fee_jual_val
+                            if total_fee > 0:
+                                fee_part = f"""<div style='display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.75rem; flex-wrap:wrap;'>
+<div style='background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;'>Fee Beli {format_rupiah(fee_beli_val)}</div>
+<div style='background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;'>Fee Jual {format_rupiah(fee_jual_val)}</div>
+<div style='background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px; font-weight:600;'>Total Fee {format_rupiah(total_fee)}</div>
+</div>"""
+                        elif fee_jual_val > 0:
+                            fee_part = f"""<div style='display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.75rem; flex-wrap:wrap;'>
+<div style='background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;'>Fee Jual {format_rupiah(fee_jual_val)}</div>
+</div>"""
                         
                         sub_html = f"""
 <div style='display:flex; align-items:center; gap:8px; margin-top:8px; font-size:0.85rem; flex-wrap:wrap;'>
 <div style='background:#f1f5f9; color:#334155; border:1px solid transparent; padding:3px 9px; border-radius:6px; font-weight:700;'>Net {format_rupiah(nv)}</div>
 {pl_part}
 </div>
+{fee_part}
 """
                         
                         st.markdown(f"""
@@ -444,21 +482,37 @@ def ara_arb_calculator_page() -> None:
                         p_str = f"{p_str_val}%"
                         
                         gv = hv * jumlah_lot * 100
-                        nv = gv * (1 - fee_jual_final)
+                        fee_jual_val = gv * fee_jual_final
+                        nv = gv - fee_jual_val
                         pl_part = ""
+                        fee_part = ""
                         if harga_beli > 0:
-                            tb = (harga_beli * jumlah_lot * 100) * (1 + fee_beli_final)
+                            gross_beli = harga_beli * jumlah_lot * 100
+                            fee_beli_val = gross_beli * fee_beli_final
+                            tb = gross_beli + fee_beli_val
                             pl = nv - tb
                             plp = (pl / tb * 100) if tb > 0 else 0
                             pc_bg = "rgba(16,185,129,0.12)" if pl >= 0 else "rgba(239,68,68,0.12)"
                             pc_text = "#059669" if pl >= 0 else "#dc2626"
                             pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)} ({plp:+.2f}%)</div>"
+                            total_fee = fee_beli_val + fee_jual_val
+                            if total_fee > 0:
+                                fee_part = f"""<div style='display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.75rem; flex-wrap:wrap;'>
+<div style='background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;'>Fee Beli {format_rupiah(fee_beli_val)}</div>
+<div style='background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;'>Fee Jual {format_rupiah(fee_jual_val)}</div>
+<div style='background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px; font-weight:600;'>Total Fee {format_rupiah(total_fee)}</div>
+</div>"""
+                        elif fee_jual_val > 0:
+                            fee_part = f"""<div style='display:flex; align-items:center; gap:6px; margin-top:4px; font-size:0.75rem; flex-wrap:wrap;'>
+<div style='background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:4px;'>Fee Jual {format_rupiah(fee_jual_val)}</div>
+</div>"""
                         
                         sub_html = f"""
 <div style='display:flex; align-items:center; gap:8px; margin-top:8px; font-size:0.85rem; flex-wrap:wrap;'>
 <div style='background:#f1f5f9; color:#334155; border:1px solid transparent; padding:3px 9px; border-radius:6px; font-weight:700;'>Net {format_rupiah(nv)}</div>
 {pl_part}
 </div>
+{fee_part}
 """
                         
                         st.markdown(f"""
