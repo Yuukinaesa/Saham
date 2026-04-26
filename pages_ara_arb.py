@@ -135,7 +135,7 @@ def calculate_ara_arb_sequence(harga_dasar: float, is_acceleration: bool = False
             harga_arb_baru = 1
 
         if harga_arb_baru >= harga_arb_sekarang:
-             pass
+             break  # Price stalled — no further meaningful ARB steps
 
         perubahan = harga_arb_baru - harga_arb_sekarang
         persentase_perubahan = (perubahan / harga_arb_sekarang) * 100 if harga_arb_sekarang > 0 else 0
@@ -212,22 +212,9 @@ def ara_arb_calculator_page() -> None:
         
         if calc_mode == "Preset Skenario (ARA Beruntun, FCA)":
             preset_sequence = calculate_preset_ara_beruntun(harga_penutupan, is_acceleration)
-            # --- Find last ARA item for summary ---
-            last_ara = [x for x in preset_sequence if x['tipe'] != 'suspend']
-            max_pct = last_ara[-1]['persentase_kumulatif'] if last_ara else 0
-            max_harga = float(last_ara[-1]['harga']) if last_ara else harga_penutupan
-            max_net_val = max_harga * jumlah_lot * 100 * (1 - fee_jual_final)
             # --- Compute initial (base) values for header ---
             base_gross = harga_penutupan * jumlah_lot * 100
             base_net = base_gross * (1 - fee_jual_final)
-            base_pl = 0.0
-            base_pl_pct = 0.0
-            if harga_beli > 0:
-                base_modal = (harga_beli * jumlah_lot * 100) * (1 + fee_beli_final)
-                base_pl = base_net - base_modal
-                base_pl_pct = (base_pl / base_modal * 100) if base_modal > 0 else 0
-            
-            pl_col_header = "#34d399" if base_pl >= 0 else "#f87171"
             
             # 1) Header card — uses indigo gradient visible in both light & dark mode
             st.markdown(f"""
@@ -418,7 +405,7 @@ def ara_arb_calculator_page() -> None:
                             plp = (pl / tb * 100) if tb > 0 else 0
                             pc_bg = "rgba(16,185,129,0.12)" if pl >= 0 else "rgba(239,68,68,0.12)"
                             pc_text = "#059669" if pl >= 0 else "#dc2626"
-                            pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)}</div>"
+                            pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)} ({plp:+.2f}%)</div>"
                         
                         sub_html = f"""
 <div style='display:flex; align-items:center; gap:8px; margin-top:8px; font-size:0.85rem; flex-wrap:wrap;'>
@@ -465,7 +452,7 @@ def ara_arb_calculator_page() -> None:
                             plp = (pl / tb * 100) if tb > 0 else 0
                             pc_bg = "rgba(16,185,129,0.12)" if pl >= 0 else "rgba(239,68,68,0.12)"
                             pc_text = "#059669" if pl >= 0 else "#dc2626"
-                            pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)}</div>"
+                            pl_part = f"<div style='background:{pc_bg}; color:{pc_text}; padding:4px 10px; border-radius:6px; font-weight:700;'>P/L {format_rupiah(pl)} ({plp:+.2f}%)</div>"
                         
                         sub_html = f"""
 <div style='display:flex; align-items:center; gap:8px; margin-top:8px; font-size:0.85rem; flex-wrap:wrap;'>
