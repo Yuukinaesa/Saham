@@ -184,7 +184,7 @@ def stock_screener_page() -> None:
             return (lambda v: '—' if (pd.isna(v) or v == 0) else fn(v))
         fmt_candidates = {
             'Current Price': dash_or(lambda x: format_rupiah(x)),
-            'Market Cap': dash_or(lambda x: format_number(x, 0)),
+            'Market Cap': dash_or(lambda x: format_short_number(x)),
             'Shares Outstanding': dash_or(lambda x: format_number(x, 0)),
             'Float Shares': dash_or(lambda x: format_number(x, 0)),
             'Institutional Ownership %': dash_or(lambda x: format_percent(x, 2)),

@@ -271,44 +271,51 @@ def technical_tools_page():
                                 delta = df_chart['Close'].diff()
                                 gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
                                 loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-                                rs = gain / loss
+                                rs = gain / loss.replace(0, np.nan)
                                 df_chart['RSI'] = 100 - (100 / (1 + rs))
                                 current_rsi = df_chart['RSI'].iloc[-1]
                                 
                                 # 2. Moving Averages
-                                df_chart['MA50'] = df_chart['Close'].rolling(window=50).mean()
-                                df_chart['MA200'] = df_chart['Close'].rolling(window=200).mean()
+                                df_chart['MA50'] = df_chart['Close'].rolling(window=50, min_periods=1).mean()
+                                df_chart['MA200'] = df_chart['Close'].rolling(window=200, min_periods=1).mean()
                                 current_close = df_chart['Close'].iloc[-1]
                                 ma50_val = df_chart['MA50'].iloc[-1]
                                 ma200_val = df_chart['MA200'].iloc[-1]
 
                                 # 3. Trend Analysis
                                 trend_status = "Sideways/Unknown"
-                                if current_close > ma50_val and current_close > ma200_val:
-                                    trend_status = "BULLISH (Strong Uptrend)"
-                                elif current_close < ma50_val and current_close < ma200_val:
-                                    trend_status = "BEARISH (Strong Downtrend)"
-                                elif current_close > ma200_val and current_close < ma50_val:
-                                    trend_status = "Correction in Uptrend"
-                                elif current_close < ma200_val and current_close > ma50_val:
-                                    trend_status = "Rebound in Downtrend"
+                                if pd.notna(ma50_val) and pd.notna(ma200_val):
+                                    if current_close > ma50_val and current_close > ma200_val:
+                                        trend_status = "BULLISH (Strong Uptrend)"
+                                    elif current_close < ma50_val and current_close < ma200_val:
+                                        trend_status = "BEARISH (Strong Downtrend)"
+                                    elif current_close > ma200_val and current_close < ma50_val:
+                                        trend_status = "Correction in Uptrend"
+                                    elif current_close < ma200_val and current_close > ma50_val:
+                                        trend_status = "Rebound in Downtrend"
                                     
                                 # 4. RSI Status
                                 rsi_status = "Neutral"
                                 rsi_color = "white"
-                                if current_rsi >= 70:
-                                    rsi_status = "Overbought (Jenuh Beli)"
-                                    rsi_color = "#ef4444"
-                                elif current_rsi <= 30:
-                                    rsi_status = "Oversold (Jenuh Jual)"
-                                    rsi_color = "#10b981"
+                                if pd.notna(current_rsi):
+                                    if current_rsi >= 70:
+                                        rsi_status = "Overbought (Jenuh Beli)"
+                                        rsi_color = "#ef4444"
+                                    elif current_rsi <= 30:
+                                        rsi_status = "Oversold (Jenuh Jual)"
+                                        rsi_color = "#10b981"
+                                    rsi_fmt = f"{current_rsi:.2f}"
+                                else:
+                                    rsi_fmt = "N/A"
                                     
                                 # --- DISPLAY TECHNICAL CARD ---
                                 st.info(f"💡 **Technical Summary:** {trend_status}")
                                 tc1, tc2, tc3 = st.columns(3)
-                                tc1.metric("RSI (14)", f"{current_rsi:.2f}", rsi_status)
-                                tc2.metric("MA 50", f"{format_number(ma50_val,0)}", f"{current_close - ma50_val:.0f} vs Price")
-                                tc3.metric("MA 200", f"{format_number(ma200_val,0)}", f"{current_close - ma200_val:.0f} vs Price")
+                                tc1.metric("RSI (14)", rsi_fmt, rsi_status)
+                                ma50_diff = f"{current_close - ma50_val:.0f} vs Price" if pd.notna(ma50_val) else "N/A"
+                                ma200_diff = f"{current_close - ma200_val:.0f} vs Price" if pd.notna(ma200_val) else "N/A"
+                                tc2.metric("MA 50", f"{format_number(ma50_val,0)}" if pd.notna(ma50_val) else "N/A", ma50_diff)
+                                tc3.metric("MA 200", f"{format_number(ma200_val,0)}" if pd.notna(ma200_val) else "N/A", ma200_diff)
                                 
                                 # --- PLOTTING ---
                                 from plotly.subplots import make_subplots
