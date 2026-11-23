@@ -29,10 +29,10 @@ def compound_interest_page() -> None:
             <h3 style='color: var(--text-color); margin-bottom: 12px;'>Input Investasi</h3>
         </div>
         """, unsafe_allow_html=True)
-        firstm = st.number_input('💰 Masukkan nilai awal investasi', step=1000000, format="%d", value=1000000)
-        rate = st.number_input('📈 Masukkan tingkat bunga per tahun (%)', step=0.1, format="%.2f", value=10.0)
-        years = st.number_input('🗓️ Masukkan jumlah tahun (misal: 5.5 untuk 5 tahun 5 bulan)', step=0.1, format="%.1f", value=5.0)
-        additional_investment = st.number_input('➕ Masukkan tambahan investasi per bulan', step=1000000, format="%d", value=1000000)
+        firstm = st.number_input('💰 Masukkan nilai awal investasi', min_value=0, step=1000000, format="%d", value=1000000)
+        rate = st.number_input('📈 Masukkan tingkat bunga per tahun (%)', min_value=0.0, step=0.1, format="%.2f", value=10.0)
+        years = st.number_input('🗓️ Masukkan jumlah tahun (misal: 5.5 untuk 5 tahun 5 bulan)', min_value=0.1, max_value=100.0, step=0.1, format="%.1f", value=5.0)
+        additional_investment = st.number_input('➕ Masukkan tambahan investasi per bulan', min_value=0, step=1000000, format="%d", value=1000000)
 
     if st.button('Hitung', key='calculate_compound'):
         with st.spinner('Menghitung bunga berbunga...'):
@@ -42,6 +42,10 @@ def compound_interest_page() -> None:
                     st.error("Silakan masukkan nilai investasi awal dan tingkat bunga untuk menghitung compound interest")
                     return
                 df = calculate_compound_interest(firstm, rate, years, additional_investment)
+                if df.empty:
+                    st.toast("⚠️ Hasil perhitungan bunga berbunga kosong.", icon="⚠️")
+                    st.warning("Data perhitungan bunga berbunga kosong.")
+                    return
                 df_display = df.copy()
                 df_display['Amount'] = df_display['Amount'].apply(lambda x: format_rupiah(x))
                 st.markdown("""

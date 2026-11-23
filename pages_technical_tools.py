@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
 import yfinance as yf
 import plotly.graph_objects as go
 from utils import format_rupiah, format_number, get_resilient_session
@@ -214,7 +215,8 @@ def technical_tools_page():
                  with st.spinner(f"Mencari Swing High/Low {symbol_fib}..."):
                      try:
                          # Fetch 1 Month Data
-                         t = yf.Ticker(f"{symbol_fib}.JK")
+                         sess = get_resilient_session()
+                         t = yf.Ticker(f"{symbol_fib}.JK", session=sess)
                          h = t.history(period="1mo")
                          if not h.empty:
                              # Find Max High and Min Low in period
@@ -263,7 +265,8 @@ def technical_tools_page():
                     with st.spinner("Menganalisa Teknikal..."):
                         try:
                             # Fetch data for chart (6 months for MA200)
-                            chart_ticker = yf.Ticker(f"{symbol_fib}.JK")
+                            sess = get_resilient_session()
+                            chart_ticker = yf.Ticker(f"{symbol_fib}.JK", session=sess)
                             df_chart = chart_ticker.history(period="6mo")
                             
                             if not df_chart.empty:

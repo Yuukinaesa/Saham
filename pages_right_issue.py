@@ -20,7 +20,10 @@ def right_issue_calculator_page():
         
         # Broker Selection for Fees
         broker = st.selectbox("Pilih Sekuritas (Fee Jual)", list(PLATFORM_CONFIG.keys()), index=0, key='ri_broker')
-        _, fee_jual = PLATFORM_CONFIG[broker]
+        if broker == "Custom":
+            fee_jual = st.number_input("Fee Jual Custom (%)", min_value=0.0, max_value=5.0, value=0.25, step=0.01, key='ri_custom_fee') / 100.0
+        else:
+            _, fee_jual = PLATFORM_CONFIG[broker]
 
 
     st.markdown("---")

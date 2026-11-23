@@ -147,7 +147,7 @@ def market_overview_page():
         selected_symbols = list(all_syms)
         display_name = "Gabungan Seluruh Kategori di Sistem"
     else:
-        selected_symbols = MARKET_INDICES[selected_index_name]
+        selected_symbols = MARKET_INDICES.get(selected_index_name, list(MARKET_INDICES.values())[0] if MARKET_INDICES else [])
         display_name = selected_index_name
     
     with st.spinner(f"Mengambil data {display_name}... (Mungkin butuh waktu pemrosesan)"):
@@ -189,22 +189,23 @@ def market_overview_page():
     st.caption("Ukuran Kotak = Nilai Transaksi (Turnover) | Warna = Persentase Perubahan Harga")
     
     if not df.empty:
-        # Create bins for color
+        # Treemap requires strictly positive values for node sizing
+        df['Turnover_plot'] = df['Turnover'].apply(lambda x: float(x) if pd.notna(x) and float(x) > 0 else 1.0)
         fig = px.treemap(
             df, 
             path=['Symbol'], 
-            values='Turnover',
+            values='Turnover_plot',
             color='Change %',
             color_continuous_scale=['red', '#ffcccc', 'white', '#ccffcc', 'green'],
             color_continuous_midpoint=0,
             range_color=[-5, 5], # Cap coloring at +/- 5% for better contrast
-            custom_data=['Price', 'Change %', 'Volume']
+            custom_data=['Price', 'Change %', 'Volume', 'Turnover']
         )
         
         fig.update_traces(
             textposition='middle center',
             textfont_size=20,
-            hovertemplate='<b>%{label}</b><br>Price: %{customdata[0]:,.0f}<br>Change: %{customdata[1]:.2f}%<br>Vol: %{customdata[2]:,.0f}'
+            hovertemplate='<b>%{label}</b><br>Price: %{customdata[0]:,.0f}<br>Change: %{customdata[1]:.2f}%<br>Vol: %{customdata[2]:,.0f}<br>Turnover: %{customdata[3]:,.0f}'
         )
         
         fig.update_layout(

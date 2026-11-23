@@ -23,7 +23,7 @@ def single_warrant_calculator(fee_beli: float, fee_jual: float) -> None:
         st.markdown('<div class="section-title">💰 Input Transaksi</div>', unsafe_allow_html=True)
         harga_beli_warrant = st.number_input('Harga Beli Warrant', min_value=0, step=1, format="%d", value=1)
         harga_jual_warrant = st.number_input('Harga Jual Warrant', min_value=0, step=1, format="%d", value=47)
-        jumlah_lot = st.number_input('Jumlah Lot', step=0.5, format="%.1f", value=3.0)
+        jumlah_lot = st.number_input('Jumlah Lot', min_value=0.5, step=0.5, format="%.1f", value=3.0)
 
     # Tombol lebih pendek, tidak full width
     if st.button('Hitung', type='primary'):
@@ -113,7 +113,7 @@ def single_warrant_calculator(fee_beli: float, fee_jual: float) -> None:
 
 def multiple_warrant_calculator(fee_beli: float, fee_jual: float) -> None:
     st.markdown('<div class="section-title">📚 Multiple Warrant</div>', unsafe_allow_html=True)
-    jumlah_warrant = st.number_input('Jumlah baris warrant', min_value=1, step=1, value=2)
+    jumlah_warrant = st.number_input('Jumlah baris warrant', min_value=1, max_value=20, step=1, value=2)
     
     multiple_rows = []
     for i in range(int(jumlah_warrant)):
@@ -125,7 +125,7 @@ def multiple_warrant_calculator(fee_beli: float, fee_jual: float) -> None:
         with c3:
             jual = st.number_input(f'Harga Jual #{i+1}', min_value=0.0, step=1.0, format="%0.0f", value=47.0, key=f'w_jual_{i}')
         with c4:
-            lot = st.number_input(f'Lot #{i+1}', step=0.5, format="%.1f", value=3.0, key=f'w_lot_{i}')
+            lot = st.number_input(f'Lot #{i+1}', min_value=0.5, step=0.5, format="%.1f", value=3.0, key=f'w_lot_{i}')
         multiple_rows.append((sym, beli, jual, lot))
 
     # Tombol lebih pendek

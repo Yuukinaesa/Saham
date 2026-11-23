@@ -361,10 +361,10 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
         col1, col2, col3 = st.columns(3)
         with col1:
             symbol = st.text_input(f"Simbol Saham {i+1}", value=f"STOCK{i+1}", key=f"symbol_{i}")
-            jumlah_lot = st.number_input(f"Jumlah Lot {i+1}", step=1, format="%d", value=10, key=f"lot_{i}")
+            jumlah_lot = st.number_input(f"Jumlah Lot {i+1}", min_value=1, step=1, format="%d", value=10, key=f"lot_{i}")
         with col2:
-            harga_beli = st.number_input(f"Harga Beli {i+1}", step=1000.0, format="%0.0f", value=1000.0, key=f"beli_{i}")
-            harga_jual = st.number_input(f"Harga Jual {i+1}", step=1000.0, format="%0.0f", value=2000.0, key=f"jual_{i}")
+            harga_beli = st.number_input(f"Harga Beli {i+1}", min_value=1.0, step=1000.0, format="%0.0f", value=1000.0, key=f"beli_{i}")
+            harga_jual = st.number_input(f"Harga Jual {i+1}", min_value=1.0, step=1000.0, format="%0.0f", value=2000.0, key=f"jual_{i}")
         with col3:
             include_fee_beli = st.checkbox(f"Fee Beli {i+1}", value=True, key=f"fee_beli_{i}")
             include_fee_jual = st.checkbox(f"Fee Jual {i+1}", value=True, key=f"fee_jual_{i}")

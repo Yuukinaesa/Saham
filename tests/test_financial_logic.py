@@ -32,6 +32,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from pages_calculators import calculate_profit_loss
 from pages_ara_arb import calculate_ara_arb_sequence, calculate_preset_ara_beruntun
+from pages_compound import calculate_compound_interest
+from pages_technical_tools import calc_classic_pivot, calc_woodie_pivot, calc_camarilla_pivot, calc_fibonacci
 from utils import (
     get_tick_size,
     get_ara_percentage,
@@ -195,6 +197,43 @@ class TestFinancialLogic(unittest.TestCase):
         # Price at step 1 should drop below 50: 50 * 0.93 = 46.5 -> round ceil tick 1 = 47
         self.assertEqual(arb_seq[0]['harga'], 47)
         self.assertLess(arb_seq[0]['harga'], 50)
+
+    def test_calculate_compound_interest(self):
+        # 10,000,000 at 12% per year for 1 year (1% per month), 0 addition
+        df = calculate_compound_interest(10000000, 12, 1, 0)
+        self.assertEqual(len(df), 12)
+        # End of year amount: 10,000,000 * (1.01)^12 approx 11,268,250.30
+        final_val = df['Amount'].iloc[-1]
+        self.assertAlmostEqual(final_val, 10000000 * (1.01 ** 12), delta=5.0)
+
+        # Cap years at 100 max
+        df_long = calculate_compound_interest(1000, 10, 200, 0)
+        self.assertEqual(len(df_long), 1200)
+
+    def test_pivot_points(self):
+        h, l, c = 1200, 1000, 1100
+        classic = calc_classic_pivot(h, l, c)
+        self.assertAlmostEqual(classic["P"], 1100.0)
+        self.assertAlmostEqual(classic["R1"], 1200.0)
+        self.assertAlmostEqual(classic["S1"], 1000.0)
+
+        woodie = calc_woodie_pivot(h, l, c)
+        self.assertAlmostEqual(woodie["P"], 1100.0)
+
+        camarilla = calc_camarilla_pivot(h, l, c)
+        self.assertIn("R4", camarilla)
+        self.assertIn("S4", camarilla)
+
+    def test_calc_fibonacci(self):
+        uptrend = calc_fibonacci(1000, 500, "uptrend")
+        self.assertEqual(uptrend["0.0%"], 1000.0)
+        self.assertEqual(uptrend["100.0%"], 500.0)
+        self.assertEqual(uptrend["50.0%"], 750.0)
+
+        downtrend = calc_fibonacci(1000, 500, "downtrend")
+        self.assertEqual(downtrend["0.0%"], 500.0)
+        self.assertEqual(downtrend["100.0%"], 1000.0)
+        self.assertEqual(downtrend["50.0%"], 750.0)
 
 if __name__ == '__main__':
     unittest.main()

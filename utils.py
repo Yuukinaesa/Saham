@@ -271,7 +271,7 @@ def get_usd_idr_rate(default_rate: float = 16500.0) -> float:
     raw PBV calculation is distorted by ~16,000x - 18,000x.
     """
     try:
-        usd = yf.Ticker("USDIDR=X")
+        usd = yf.Ticker("USDIDR=X", session=get_resilient_session())
         fi = getattr(usd, 'fast_info', None)
         rate = getattr(fi, 'last_price', None) or getattr(fi, 'regular_market_previous_close', None) if fi else None
         if rate and float(rate) > 5000:
