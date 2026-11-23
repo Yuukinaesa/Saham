@@ -193,6 +193,10 @@ def stock_screener_page() -> None:
             'Price/Book (PBVR)': dash_or(lambda x: format_ratio(x)),
             'Trailing P/E (PER)': dash_or(lambda x: format_ratio(x)),
             'Return on Equity (%) (ROE)': dash_or(lambda x: format_percent(x, 2)),
+            'Return on Assets (%) (ROA)': dash_or(lambda x: format_percent(x, 2)),
+            'Net Income': dash_or(lambda x: format_short_number(x)),
+            'Cash from Operations': dash_or(lambda x: format_number(x, 0)),
+            'Free Cash Flow': dash_or(lambda x: format_short_number(x)),
         }
         format_dict = {k: v for k, v in fmt_candidates.items() if k in df_display.columns}
         st.dataframe(apply_format_values(df_display, format_dict), use_container_width=True, hide_index=True)

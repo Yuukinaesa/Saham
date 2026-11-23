@@ -30,203 +30,119 @@ import feedparser
 import urllib.parse
 from utils import sanitize_url
 
-def get_kabarbursa_news(symbol):
-    """Scrape KabarBursa via Google RSS using feedparser"""
+_rss_session = None
+
+
+def get_rss_session():
+    """Get or create reusable HTTP session for RSS feeds with standard User-Agent."""
+    global _rss_session
+    if _rss_session is not None:
+        return _rss_session
+    s = requests.Session()
+    s.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/rss+xml, application/xml, text/xml;q=0.9, */*;q=0.8'
+    })
+    _rss_session = s
+    return _rss_session
+
+
+def fetch_google_rss_feed(query: str, publisher: str, max_items: int = 5, timeout: float = 4.0) -> list:
+    """Fetch and parse Google News RSS with SSRF validation, timeout enforcement, and rate-limiting."""
     try:
-        safe_symbol = urllib.parse.quote(symbol, safe='')
-        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:kabarbursa.com&hl=id-ID&gl=ID&ceid=ID:id"
-        feed = feedparser.parse(url)
+        from rate_limiter import news_limiter
+        if not news_limiter.acquire():
+            return []
+            
+        safe_query = urllib.parse.quote(query, safe='+:')
+        url = f"https://news.google.com/rss/search?q={safe_query}&hl=id-ID&gl=ID&ceid=ID:id"
+        
+        # SSRF Defense: strictly validate scheme and host
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme != 'https' or parsed.netloc != 'news.google.com':
+            return []
+            
+        sess = get_rss_session()
+        resp = sess.get(url, timeout=timeout)
+        if resp.status_code != 200:
+            return []
+            
+        feed = feedparser.parse(resp.content)
         news_items = []
-        for entry in feed.entries[:5]:
-            try:
-                news_items.append({
-                    'title': entry.get('title', 'No Title'),
-                    'link': entry.get('link', '#'),
-                    'publisher': 'KabarBursa',
-                    'providerPublishTime': 0
-                })
-            except Exception:
-                continue
+        for entry in feed.entries[:max_items]:
+            link = sanitize_url(entry.get('link', '#'))
+            title = entry.get('title', 'No Title')
+            news_items.append({
+                'title': title,
+                'link': link,
+                'publisher': publisher,
+                'providerPublishTime': 0
+            })
         return news_items
     except Exception:
-        pass
-    return []
+        return []
+
+
+def get_kabarbursa_news(symbol):
+    """Scrape KabarBursa via Google RSS"""
+    safe_symbol = urllib.parse.quote(symbol, safe='')
+    return fetch_google_rss_feed(f"{safe_symbol}+site:kabarbursa.com", "KabarBursa", max_items=5)
 
 def get_kontan_news(symbol):
-    """Scrape Kontan via Google RSS using feedparser"""
-    try:
-        safe_symbol = urllib.parse.quote(symbol, safe='')
-        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:kontan.co.id&hl=id-ID&gl=ID&ceid=ID:id"
-        feed = feedparser.parse(url)
-        news_items = []
-        for entry in feed.entries[:5]:
-            try:
-                news_items.append({
-                    'title': entry.get('title', 'No Title'),
-                    'link': entry.get('link', '#'),
-                    'publisher': 'Kontan',
-                    'providerPublishTime': 0
-                })
-            except Exception:
-                continue
-        return news_items
-    except Exception:
-        pass
-    return []
+    """Scrape Kontan via Google RSS"""
+    safe_symbol = urllib.parse.quote(symbol, safe='')
+    return fetch_google_rss_feed(f"{safe_symbol}+site:kontan.co.id", "Kontan", max_items=5)
+
 
 def get_cnbc_news(symbol):
-    """Scrape CNBC via Google RSS using feedparser"""
-    try:
-        safe_symbol = urllib.parse.quote(symbol, safe='')
-        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:cnbcindonesia.com&hl=id-ID&gl=ID&ceid=ID:id"
-        feed = feedparser.parse(url)
-        news_items = []
-        for entry in feed.entries[:5]:
-            try:
-                news_items.append({
-                    'title': entry.get('title', 'No Title'),
-                    'link': entry.get('link', '#'),
-                    'publisher': 'CNBC Indonesia',
-                    'providerPublishTime': 0
-                })
-            except Exception:
-                continue
-        return news_items
-    except Exception:
-        pass
-    return []
+    """Scrape CNBC via Google RSS"""
+    safe_symbol = urllib.parse.quote(symbol, safe='')
+    return fetch_google_rss_feed(f"{safe_symbol}+site:cnbcindonesia.com", "CNBC Indonesia", max_items=5)
 
 def get_google_news_rss(symbol):
     """General Google News using feedparser with multiple queries"""
     news_items = []
     seen_links = set()
-    
-    # URL-encode symbol for safety
     safe_symbol = urllib.parse.quote(symbol, safe='')
-    
-    # Reduced search terms to avoid timeouts
     search_terms = [
         f"{safe_symbol}+saham",
         f"{safe_symbol}+Indonesia",
         f"PT+{safe_symbol}",
     ]
-    
     for query in search_terms:
-        try:
-            url = f"https://news.google.com/rss/search?q={query}&hl=id-ID&gl=ID&ceid=ID:id"
-            feed = feedparser.parse(url)
-            
-            for entry in feed.entries[:10]:
-                try:
-                    link = entry.get('link', '#')
-                    if link not in seen_links:
-                        seen_links.add(link)
-                        news_items.append({
-                            'title': entry.get('title', 'No Title'),
-                            'link': link,
-                            'publisher': entry.get('source', {}).get('title', 'Google News'),
-                            'providerPublishTime': 0
-                        })
-                except Exception:
-                    continue
-                    
-            if len(news_items) >= 20:
-                break
-                
-            # Small delay to avoid rate limiting
-            time.sleep(0.5)
-        except Exception:
-            continue
-    
+        items = fetch_google_rss_feed(query, "Google News", max_items=10)
+        for item in items:
+            link = item.get('link', '#')
+            if link not in seen_links:
+                seen_links.add(link)
+                news_items.append(item)
+        if len(news_items) >= 20:
+            break
     return news_items
+
 
 def get_bisnis_news(symbol):
     """Scrape Bisnis.com via Google RSS"""
-    try:
-        safe_symbol = urllib.parse.quote(symbol, safe='')
-        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:bisnis.com&hl=id-ID&gl=ID&ceid=ID:id"
-        feed = feedparser.parse(url)
-        news_items = []
-        for entry in feed.entries[:7]:
-            try:
-                news_items.append({
-                    'title': entry.get('title', 'No Title'),
-                    'link': entry.get('link', '#'),
-                    'publisher': 'Bisnis.com',
-                    'providerPublishTime': 0
-                })
-            except Exception:
-                continue
-        return news_items
-    except Exception:
-        pass
-    return []
+    safe_symbol = urllib.parse.quote(symbol, safe='')
+    return fetch_google_rss_feed(f"{safe_symbol}+site:bisnis.com", "Bisnis.com", max_items=7)
+
 
 def get_detik_finance_news(symbol):
     """Scrape Detik via Google RSS"""
-    try:
-        safe_symbol = urllib.parse.quote(symbol, safe='')
-        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:detik.com&hl=id-ID&gl=ID&ceid=ID:id"
-        feed = feedparser.parse(url)
-        news_items = []
-        for entry in feed.entries[:7]:
-            try:
-                news_items.append({
-                    'title': entry.get('title', 'No Title'),
-                    'link': entry.get('link', '#'),
-                    'publisher': 'Detik Finance',
-                    'providerPublishTime': 0
-                })
-            except Exception:
-                continue
-        return news_items
-    except Exception:
-        pass
-    return []
+    safe_symbol = urllib.parse.quote(symbol, safe='')
+    return fetch_google_rss_feed(f"{safe_symbol}+site:detik.com", "Detik Finance", max_items=7)
+
 
 def get_idx_channel_news(symbol):
     """Scrape IDX via Google RSS"""
-    try:
-        safe_symbol = urllib.parse.quote(symbol, safe='')
-        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:idx.co.id&hl=id-ID&gl=ID&ceid=ID:id"
-        feed = feedparser.parse(url)
-        news_items = []
-        for entry in feed.entries[:5]:
-            try:
-                news_items.append({
-                    'title': entry.get('title', 'No Title'),
-                    'link': entry.get('link', '#'),
-                    'publisher': 'IDX Channel',
-                    'providerPublishTime': 0
-                })
-            except Exception:
-                continue
-        return news_items
-    except Exception:
-        pass
-    return []
+    safe_symbol = urllib.parse.quote(symbol, safe='')
+    return fetch_google_rss_feed(f"{safe_symbol}+site:idx.co.id", "IDX Channel", max_items=5)
+
 
 def get_investing_indonesia_news(symbol):
-    """Scrape Investing.com via Google RSS"""
-    try:
-        safe_symbol = urllib.parse.quote(symbol, safe='')
-        url = f"https://news.google.com/rss/search?q={safe_symbol}+site:id.investing.com&hl=id-ID&gl=ID&ceid=ID:id"
-        feed = feedparser.parse(url)
-        news_items = []
-        for entry in feed.entries[:5]:
-            try:
-                news_items.append({
-                    'title': entry.get('title', 'No Title'),
-                    'link': entry.get('link', '#'),
-                    'publisher': 'Investing.com ID',
-                    'providerPublishTime': 0
-                })
-            except Exception:
-                continue
-        return news_items
-    except Exception:
-        pass
-    return []
+    """Scrape Investing.com ID via Google RSS"""
+    safe_symbol = urllib.parse.quote(symbol, safe='')
+    return fetch_google_rss_feed(f"{safe_symbol}+site:id.investing.com", "Investing.com ID", max_items=5)
 
 
 def analyze_sentiment(news_list):
@@ -1292,27 +1208,33 @@ def render_smart_summary(analysis_data, history):
     
     c1, c2, c3 = st.columns(3)
     
+    import html as html_module
+
     # 1. Sentiment Card
-    s_label = sent.get('label', 'NEUTRAL')
-    s_color = "#10b981" if "POSITIVE" in s_label else "#ef4444" if "NEGATIVE" in s_label else "#9ca3af"
+    raw_s_label = str(sent.get('label', 'NEUTRAL'))
+    s_label = html_module.escape(raw_s_label)
+    s_color = "#10b981" if "POSITIVE" in raw_s_label else "#ef4444" if "NEGATIVE" in raw_s_label else "#9ca3af"
+    safe_summary = html_module.escape(str(sent.get('summary', '-'))).replace('**', '')
     with c1:
         st.markdown(f"""
         <div style='background-color: {s_color}20; padding: 15px; border-radius: 10px; border: 1px solid {s_color}; text-align: center;'>
             <h4 style='margin:0; color: {s_color};'>Sentimen Berita</h4>
             <h3 style='margin:5px 0; color: {s_color};'>{s_label}</h3>
-            <p style='margin:0; font-size: 12px; opacity: 0.8;'>{sent.get('summary', '-')}</p>
+            <p style='margin:0; font-size: 12px; opacity: 0.8;'>{safe_summary}</p>
         </div>
         """, unsafe_allow_html=True)
         
     # 2. Fundamental Card
-    f_label = fund.get('label', 'UNKNOWN')
-    f_color = "#10b981" if f_label in ["EXCELLENT", "GOOD"] else "#ef4444" if f_label in ["POOR", "WEAK"] else "#9ca3af"
+    raw_f_label = str(fund.get('label', 'UNKNOWN'))
+    f_label = html_module.escape(raw_f_label)
+    f_color = "#10b981" if raw_f_label in ["EXCELLENT", "GOOD"] else "#ef4444" if raw_f_label in ["POOR", "WEAK"] else "#9ca3af"
+    safe_score = int(fund.get('score', 0))
     with c2:
         st.markdown(f"""
         <div style='background-color: {f_color}20; padding: 15px; border-radius: 10px; border: 1px solid {f_color}; text-align: center;'>
             <h4 style='margin:0; color: {f_color};'>Kesehatan Fundamental</h4>
             <h3 style='margin:5px 0; color: {f_color};'>{f_label}</h3>
-            <p style='margin:0; font-size: 12px; opacity: 0.8;'>Skor: {fund.get('score', 0)}/5</p>
+            <p style='margin:0; font-size: 12px; opacity: 0.8;'>Skor: {safe_score}/5</p>
         </div>
         """, unsafe_allow_html=True)
         

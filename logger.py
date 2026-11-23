@@ -8,24 +8,45 @@ Compliance: NIST SP 800-92, ISO 27001 A.12.4
 import logging
 import json
 import os
+import re
 from datetime import datetime, timezone
+
+SENSITIVE_PATTERNS = [
+    (re.compile(r'(crumb=)[^&\s]+', re.IGNORECASE), r'\1[REDACTED]'),
+    (re.compile(r'(token=)[^&\s]+', re.IGNORECASE), r'\1[REDACTED]'),
+    (re.compile(r'(key=)[^&\s]+', re.IGNORECASE), r'\1[REDACTED]'),
+    (re.compile(r'(password=)[^&\s]+', re.IGNORECASE), r'\1[REDACTED]'),
+    (re.compile(r'(secret=)[^&\s]+', re.IGNORECASE), r'\1[REDACTED]'),
+    (re.compile(r'(Bearer\s+)[a-zA-Z0-9_\-\.]+', re.IGNORECASE), r'\1[REDACTED]'),
+]
+
+
+def redact_sensitive(text: str) -> str:
+    """Redact sensitive credentials, crumbs, and auth tokens from log strings."""
+    if not isinstance(text, str):
+        return str(text)
+    for pattern, repl in SENSITIVE_PATTERNS:
+        text = pattern.sub(repl, text)
+    return text
 
 
 class StructuredFormatter(logging.Formatter):
-    """JSON-structured log formatter for machine-parseable audit trail."""
+    """JSON-structured log formatter for machine-parseable audit trail with PII/secret redaction."""
 
     def format(self, record: logging.LogRecord) -> str:
+        raw_message = record.getMessage()
+        safe_message = redact_sensitive(raw_message)
         log_entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,
-            "message": record.getMessage(),
+            "message": safe_message,
         }
         # Add extra context if provided
         if hasattr(record, 'user_action'):
-            log_entry['user_action'] = record.user_action
+            log_entry['user_action'] = redact_sensitive(str(record.user_action))
         if hasattr(record, 'symbol'):
             log_entry['symbol'] = record.symbol
         if hasattr(record, 'security_event'):

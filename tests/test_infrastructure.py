@@ -88,6 +88,35 @@ class TestStructuredLogger(unittest.TestCase):
         self.assertIn("level", parsed)
         self.assertEqual(parsed["message"], "test message")
 
+    def test_sensitive_data_redaction(self):
+        """CWE-532: Secrets and auth tokens must be redacted from log outputs."""
+        import json
+        from logger import StructuredFormatter, redact_sensitive
+        import logging
+        
+        # Test helper directly
+        raw = "Query URL: https://example.com/api?crumb=supersecret123&token=tok456&key=key789 password=mysecret"
+        redacted = redact_sensitive(raw)
+        self.assertNotIn("supersecret123", redacted)
+        self.assertNotIn("tok456", redacted)
+        self.assertNotIn("key789", redacted)
+        self.assertNotIn("mysecret", redacted)
+        self.assertIn("[REDACTED]", redacted)
+
+        # Test within structured log record
+        formatter = StructuredFormatter()
+        record = logging.LogRecord(
+            name="security_test", level=logging.WARNING, pathname="test.py",
+            lineno=42, msg="Failed auth with Bearer eyJhbGciOiJIUzI1NiJ9", args=(), exc_info=None
+        )
+        record.user_action = "login_attempt token=secret_session_token"
+        record.security_event = "auth_failure"
+        output = json.loads(formatter.format(record))
+        self.assertNotIn("eyJhbGciOiJIUzI1NiJ9", output["message"])
+        self.assertIn("[REDACTED]", output["message"])
+        self.assertNotIn("secret_session_token", output["user_action"])
+        self.assertIn("[REDACTED]", output["user_action"])
+
 
 class TestRateLimiter(unittest.TestCase):
     """OWASP API4: Rate Limiting Tests"""

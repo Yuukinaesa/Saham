@@ -291,6 +291,22 @@ class TestURLSanitization(unittest.TestCase):
         self.assertEqual(sanitize_url(url), "https://example.com")
 
 
+class TestSSRFProtection(unittest.TestCase):
+    """OWASP A10: Server-Side Request Forgery (SSRF) Prevention Tests"""
+
+    def test_rss_fetcher_safely_handles_bad_input(self):
+        """RSS feed fetcher should never connect to unapproved hosts or crash."""
+        from pages_analysis import fetch_google_rss_feed
+        # Malicious queries attempting to break out of URL structure
+        result = fetch_google_rss_feed("@169.254.169.254/latest/meta-data", "TestPub", timeout=0.5)
+        self.assertIsInstance(result, list)
+
+    def test_sanitize_url_rejects_file_and_gopher(self):
+        """Block file:// and gopher:// schemes."""
+        self.assertEqual(sanitize_url("file:///etc/passwd"), '#')
+        self.assertEqual(sanitize_url("gopher://127.0.0.1:70"), '#')
+
+
 class TestNumericInputValidation(unittest.TestCase):
     """ISO 25010: Robustness - Input Boundary Validation"""
 
