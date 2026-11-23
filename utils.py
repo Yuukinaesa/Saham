@@ -83,24 +83,48 @@ def get_tick_size(price: float) -> int:
     else:
         return 25
 
-def get_ara_arb_percentage(price: float, board: str = 'regular') -> float:
-    """
-    Get ARA Percentage limit based on price and board type.
-    Note: ARB for regular board is flat 15% per BEI Kep-00003/BEI/04-2025.
-    """
-    if board == 'acceleration':
+def get_ara_percentage(price: float, board: str = 'regular') -> float:
+    """Get BEI ARA limit percentage based on price and board type."""
+    if board in ('acceleration', 'fca'):
         if price <= 10:
-            return 0 # Special case handled by absolutes
-        return 0.10 # 10%
+            return 0  # Special case handled by nominal Rp 1
+        return 0.10  # 10%
         
-    # Regular Board Rules (Adjusted for recent BEI normalization)
-    # Note: Using ranges provided in original code which likely reflect effective rules
+    # Regular / Main / Development / New Economy Board Rules
+    if price <= 10:
+        return 0  # Nominal Rp 1 per Kep-00158/BEI/10-2026
     if price > 5000:
         return 0.20
     elif 200 <= price <= 5000:
         return 0.25
-    else: # 50 - 200
+    else:  # < 200
         return 0.35
+
+
+def get_arb_percentage(price: float, board: str = 'regular', regime: str = 'current_2026') -> float:
+    """Get BEI ARB limit percentage based on price, board type, and regulatory regime.
+    
+    Regimes:
+    - 'current_2026': SK Direksi BEI No. Kep-00158/BEI/10-2026 (ARB asimetris 7% / nominal Rp 1)
+    - 'flat_15': SK Direksi BEI No. Kep-00003/BEI/04-2025 (ARB flat 15%)
+    - 'symmetric': Batas ARB simetris dengan ARA (35% / 25% / 20%)
+    """
+    if board in ('acceleration', 'fca'):
+        if price <= 10:
+            return 0  # Nominal Rp 1
+        return 0.10
+    if regime == 'current_2026':
+        return 0.07
+    elif regime == 'flat_15':
+        return 0.15
+    elif regime == 'symmetric':
+        return get_ara_percentage(price, board)
+    return 0.07
+
+
+def get_ara_arb_percentage(price: float, board: str = 'regular') -> float:
+    """Legacy helper returning ARA percentage for backward compatibility."""
+    return get_ara_percentage(price, board)
 
 
 
@@ -238,9 +262,152 @@ def format_large_number(value: float) -> str:
         return "0"
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_usd_idr_rate(default_rate: float = 16500.0) -> float:
+    """Fetch current USD/IDR exchange rate for normalizing metrics of emiten reporting in USD.
+    
+    Many IDX commodity & mining companies (ADRO, MEDC, MDKA, INCO, BYAN, TPIA, BUMI)
+    report balance sheets in USD while stock price trades in IDR. Without FX normalization,
+    raw PBV calculation is distorted by ~16,000x - 18,000x.
+    """
+    try:
+        usd = yf.Ticker("USDIDR=X")
+        fi = getattr(usd, 'fast_info', None)
+        rate = getattr(fi, 'last_price', None) or getattr(fi, 'regular_market_previous_close', None) if fi else None
+        if rate and float(rate) > 5000:
+            return float(rate)
+    except Exception:
+        pass
+    return default_rate
+
+
+def normalize_pbv(price_to_book: float, financial_currency: str = 'IDR', currency: str = 'IDR') -> float:
+    """Normalize PBV when company reports balance sheet in USD but trades in IDR.
+    
+    If financialCurrency is USD (or price_to_book > 500 due to currency mismatch),
+    divides by the USD/IDR exchange rate to recover the true fundamental PBV.
+    """
+    val = _safe_float(price_to_book)
+    if val <= 0:
+        return 0.0
+    if (financial_currency == 'USD' or val > 500) and currency == 'IDR':
+        rate = get_usd_idr_rate()
+        if rate > 0 and val > 100:
+            return round(val / rate, 2)
+    return round(val, 2)
+
+
+_shared_session = None
+_shared_crumb = None
+
+
+def get_resilient_session():
+    """Get or create browser-impersonating session to bypass Yahoo 401/429 blocks on Cloud IPs."""
+    global _shared_session
+    if _shared_session is not None:
+        return _shared_session
+    try:
+        from curl_cffi import requests as cffi_requests
+        s = cffi_requests.Session(impersonate='chrome')
+        try:
+            s.get("https://fc.yahoo.com", timeout=5)
+        except Exception:
+            pass
+        _shared_session = s
+        return _shared_session
+    except Exception:
+        import requests
+        s = requests.Session()
+        s.headers.update({
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        })
+        _shared_session = s
+        return _shared_session
+
+
+def get_yahoo_crumb(session=None) -> str:
+    """Retrieve Yahoo Finance crumb with caching."""
+    global _shared_crumb
+    if _shared_crumb:
+        return _shared_crumb
+    sess = session or get_resilient_session()
+    try:
+        r = sess.get('https://query2.finance.yahoo.com/v1/test/getcrumb', timeout=5)
+        if r.status_code == 200 and r.text and 'html' not in r.text.lower() and '<' not in r.text:
+            _shared_crumb = r.text.strip()
+            return _shared_crumb
+    except Exception:
+        pass
+    return None
+
+
+def fetch_direct_quote_summary(symbol: str, session=None) -> dict:
+    """Fallback: fetch quoteSummary directly via browser-impersonating HTTP request.
+    
+    Prevents Streamlit Cloud datacenter IP blocks from returning empty info.
+    """
+    logger = get_logger()
+    sess = session or get_resilient_session()
+    try:
+        crumb = get_yahoo_crumb(sess)
+        url = f"https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}?modules=financialData,defaultKeyStatistics,summaryDetail,price"
+        if crumb:
+            url += f"&crumb={crumb}"
+        r = sess.get(url, timeout=10)
+        if r.status_code == 200:
+            res = r.json().get('quoteSummary', {}).get('result', [])
+            if res and len(res) > 0:
+                d = res[0]
+                fd = d.get('financialData', {})
+                dks = d.get('defaultKeyStatistics', {})
+                sd = d.get('summaryDetail', {})
+                p = d.get('price', {})
+
+                def _extract(obj, k):
+                    val = obj.get(k)
+                    if isinstance(val, dict):
+                        return val.get('raw', val.get('fmt', None))
+                    return val
+
+                reg_price = _extract(p, 'regularMarketPrice')
+                curr_price = _extract(fd, 'currentPrice') or reg_price
+                raw_dy = _extract(sd, 'dividendYield')
+                norm_dy = (raw_dy * 100) if (raw_dy is not None and 0 < raw_dy < 0.5) else raw_dy
+
+                return {
+                    'regularMarketPrice': reg_price,
+                    'currentPrice': curr_price,
+                    'regularMarketPreviousClose': _extract(p, 'regularMarketPreviousClose'),
+                    'previousClose': _extract(p, 'regularMarketPreviousClose'),
+                    'priceToBook': _extract(dks, 'priceToBook'),
+                    'trailingPE': _extract(sd, 'trailingPE'),
+                    'debtToEquity': _extract(fd, 'debtToEquity'),
+                    'returnOnEquity': _extract(fd, 'returnOnEquity'),
+                    'returnOnAssets': _extract(fd, 'returnOnAssets'),
+                    'trailingEps': _extract(dks, 'trailingEps'),
+                    'dividendRate': _extract(sd, 'dividendRate'),
+                    'dividendYield': norm_dy,
+                    'marketCap': _extract(p, 'marketCap'),
+                    'sharesOutstanding': _extract(dks, 'sharesOutstanding'),
+                    'floatShares': _extract(dks, 'floatShares'),
+                    'heldPercentInsiders': _extract(dks, 'heldPercentInsiders'),
+                    'institutionOwnership': _extract(dks, 'heldPercentInstitutions'),
+                    'netIncomeToCommon': _extract(dks, 'netIncomeToCommon'),
+                    'operatingCashflow': _extract(fd, 'operatingCashflow'),
+                    'freeCashflow': _extract(fd, 'freeCashflow'),
+                    'financialCurrency': _extract(fd, 'financialCurrency'),
+                    'currency': _extract(p, 'currency'),
+                }
+    except Exception as e:
+        logger.warning(f"Direct quoteSummary fetch error for {symbol}: {e}")
+    return {}
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
     logger = get_logger()
+    sess = get_resilient_session()
     data = {}
     failed_symbols = []
     for i, symbol in enumerate(symbols):
@@ -256,16 +423,21 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
             if i > 0:
                 time.sleep(0.5)
 
-            stock = yf.Ticker(symbol)
+            stock = yf.Ticker(symbol, session=sess)
             info = {}
             try:
                 info = stock.info or {}
             except Exception as e:
                 logger.warning(f"yfinance info failed for {symbol}: {e}")
 
-            # If info is empty or only has minimal keys, try fast_info as fallback
+            # If info is empty (common on Streamlit Cloud datacenter IPs), fallback to direct quoteSummary
             if not info or len(info) <= 1:
-                logger.warning(f"Empty info for {symbol}, trying fast_info fallback")
+                logger.info(f"Empty info for {symbol}, trying direct quoteSummary fallback")
+                info = fetch_direct_quote_summary(symbol, sess)
+
+            # If still empty, try fast_info as last resort
+            if not info or len(info) <= 1:
+                logger.warning(f"Direct quoteSummary also empty for {symbol}, trying fast_info fallback")
                 try:
                     fi = stock.fast_info
                     current_price = getattr(fi, 'last_price', None) or getattr(fi, 'regular_market_previous_close', None)
@@ -300,7 +472,10 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
             forward_dividend_yield = _safe_float(info.get('dividendYield', 0))
             roe = _safe_float(info.get('returnOnEquity', 0))
             trailing_pe = _safe_float(info.get('trailingPE', 0))
-            price_to_book = _safe_float(info.get('priceToBook', 0))
+            raw_pbv = _safe_float(info.get('priceToBook', 0))
+            fin_curr = info.get('financialCurrency', 'IDR')
+            curr = info.get('currency', 'IDR')
+            price_to_book = normalize_pbv(raw_pbv, fin_curr, curr)
             debt_to_equity = _safe_float(info.get('debtToEquity', 0))
             data[symbol] = {
                 'Symbol': symbol.replace('.JK', ''),
@@ -338,6 +513,7 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
     Net Income, Free Cash Flow, Cash from Operations, Total Assets/Equity/Liabilities.
     """
     logger = get_logger()
+    sess = get_resilient_session()
     data: Dict[str, Dict[str, float]] = {}
     failed_symbols = []
     for i, symbol in enumerate(symbols):
@@ -353,12 +529,17 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
             if i > 0:
                 time.sleep(0.5)
 
-            stock = yf.Ticker(symbol)
+            stock = yf.Ticker(symbol, session=sess)
             info = {}
             try:
                 info = stock.info or {}
             except Exception as e:
                 logger.warning(f"yfinance info failed for enhanced {symbol}: {e}")
+
+            # If info is empty (common on Streamlit Cloud datacenter IPs), fallback to direct quoteSummary
+            if not info or len(info) <= 1:
+                logger.info(f"Empty info for enhanced {symbol}, trying direct quoteSummary fallback")
+                info = fetch_direct_quote_summary(symbol, sess)
 
             if not info or len(info) <= 1:
                 logger.warning(f"Empty info for enhanced {symbol}, trying fast_info fallback")
@@ -408,7 +589,7 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
                 'Float Shares': _safe_float(info.get('floatShares', 0)),
                 'Institutional Ownership %': _safe_float(info.get('institutionOwnership', 0)) * 100,
                 'Insider Ownership %': _safe_float(info.get('heldPercentInsiders', 0)) * 100,
-                'Price/Book (PBVR)': _safe_float(info.get('priceToBook', 0)),
+                'Price/Book (PBVR)': normalize_pbv(info.get('priceToBook', 0), info.get('financialCurrency', 'IDR'), info.get('currency', 'IDR')),
                 'Trailing P/E (PER)': _safe_float(info.get('trailingPE', 0)),
                 'Return on Equity (%) (ROE)': _safe_float(info.get('returnOnEquity', 0)) * 100,
                 'Return on Assets (%) (ROA)': _safe_float(info.get('returnOnAssets', 0)) * 100,
@@ -419,7 +600,7 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
                 'Total Equity': _safe_float(info.get('totalStockholderEquity', 0)),
                 'Total Liabilities': _safe_float(info.get('totalDebt', 0)),
                 'EPS': _safe_float(info.get('trailingEps', 0)),
-                'Dividend Yield %': _safe_float(info.get('dividendYield', 0)) * 100,
+                'Dividend Yield %': _safe_float(info.get('dividendYield', 0)),
             }
         except Exception as e:
             logger.error(f"Exception in enhanced fetch for {symbol}: {type(e).__name__}: {e}")

@@ -2,13 +2,14 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 import plotly.graph_objects as go
-from utils import format_rupiah, format_number
+from utils import format_rupiah, format_number, get_resilient_session
 from state_manager import get_param, set_param
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_ohlc_data(symbol):
     try:
-        ticker = yf.Ticker(f"{symbol}.JK")
+        sess = get_resilient_session()
+        ticker = yf.Ticker(f"{symbol}.JK", session=sess)
         # Get data for last 2 days to ensure we have yesterday's full close
         hist = ticker.history(period="5d")
         if len(hist) < 2:

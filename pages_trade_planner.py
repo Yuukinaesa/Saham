@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-from utils import format_rupiah, format_percent, sanitize_stock_symbol
+from utils import format_rupiah, format_percent, sanitize_stock_symbol, get_resilient_session
 from state_manager import get_param, set_param
 from rate_limiter import yfinance_limiter
 from logger import log_security_event, log_user_action
@@ -16,7 +16,8 @@ def get_realtime_price(symbol):
         ticker_symbol = f"{symbol}.JK" if not symbol.endswith(".JK") and not symbol.startswith("^") else symbol
         
         # Menggunakan yfinance dengan periode '1d' untuk mendapatkan data real-time/terbaru
-        ticker = yf.Ticker(ticker_symbol)
+        sess = get_resilient_session()
+        ticker = yf.Ticker(ticker_symbol, session=sess)
         history = ticker.history(period="1d")
         
         if not history.empty:

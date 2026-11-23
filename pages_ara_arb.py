@@ -2,10 +2,17 @@ from typing import Dict, List, Tuple
 import streamlit as st
 
 from config import PLATFORM_CONFIG
-from utils import format_rupiah, get_tick_size, get_ara_arb_percentage, round_price_to_tick
+from utils import (
+    format_rupiah,
+    get_tick_size,
+    get_ara_percentage,
+    get_arb_percentage,
+    get_ara_arb_percentage,
+    round_price_to_tick,
+)
 
 
-def calculate_preset_ara_beruntun(harga_dasar: float, is_acceleration: bool = False) -> List[Dict]:
+def calculate_preset_ara_beruntun(harga_dasar: float, is_acceleration: bool = False, board_type: str = 'regular') -> List[Dict]:
     events = [
         {"name": "Listing ARA 1", "type": "ara", "icon": "🔵", "bg": ""},
         {"name": "ARA 2", "type": "ara", "icon": "🔵", "bg": ""},
@@ -31,6 +38,7 @@ def calculate_preset_ara_beruntun(harga_dasar: float, is_acceleration: bool = Fa
     
     sequence = []
     harga_sekarang = harga_dasar
+    effective_board = 'acceleration' if is_acceleration or board_type == 'acceleration' else ('fca' if board_type == 'fca' else 'regular')
     
     for event in events:
         if event["type"] == "suspend":
@@ -44,25 +52,25 @@ def calculate_preset_ara_beruntun(harga_dasar: float, is_acceleration: bool = Fa
                 'text_color': event.get('text_color', 'var(--text-color)')
             })
         else:
-            board_type = 'acceleration' if is_acceleration else 'regular'
-            
-            if event["type"] == "fca":
-                pct = 0.10 # FCA is always 10% auto reject limit, regardless of board
+            if event["type"] == "fca" or effective_board == 'fca':
+                pct = 0.10  # FCA selalu 10% auto rejection limit
+                tick = 1     # Peraturan BEI No. II-X: Fraksi harga FCA Rp 1
+            elif effective_board == 'acceleration':
+                pct = 0.10
+                tick = 1
             else:
-                if is_acceleration and harga_sekarang <= 10:
-                    pct = 0 # Handled manually
-                else:
-                    pct = get_ara_arb_percentage(harga_sekarang, board_type)
+                pct = get_ara_percentage(harga_sekarang, 'regular')
+                tick = get_tick_size(harga_sekarang * (1 + pct))
                     
-            if event["type"] != "fca" and is_acceleration and harga_sekarang <= 10:
+            if harga_sekarang <= 10:
+                # SK Kep-00158/BEI/10-2026 & Akselerasi: Nominal Rp 1 untuk harga <= 10
                 harga_baru = harga_sekarang + 1
             else:
                 limit_price = harga_sekarang * (1 + pct)
-                tick = get_tick_size(limit_price)
                 harga_baru = round_price_to_tick(limit_price, tick, 'floor')
                 
             if harga_baru <= harga_sekarang:
-                harga_baru = harga_sekarang + get_tick_size(harga_sekarang)
+                harga_baru = harga_sekarang + (1 if (event["type"] == "fca" or effective_board in ('fca', 'acceleration')) else get_tick_size(harga_sekarang))
                 
             persentase_kumulatif = ((harga_baru - harga_dasar) / harga_dasar) * 100 if harga_dasar > 0 else 0
             
@@ -78,24 +86,57 @@ def calculate_preset_ara_beruntun(harga_dasar: float, is_acceleration: bool = Fa
             harga_sekarang = harga_baru
             
     return sequence
-def calculate_ara_arb_sequence(harga_dasar: float, is_acceleration: bool = False, max_steps: int = 10) -> Tuple[List[Dict], List[Dict]]:
+
+
+def calculate_ara_arb_sequence(
+    harga_dasar: float, 
+    is_acceleration: bool = False, 
+    max_steps: int = 10,
+    board_type: str = 'regular',
+    regime: str = 'current_2026'
+) -> Tuple[List[Dict], List[Dict]]:
+    if is_acceleration:
+        board_type = 'acceleration'
+    elif board_type == 'acceleration':
+        is_acceleration = True
+
+    is_fca = (board_type == 'fca')
+
     # Calculate ARA sequence
     ara_sequence = []
     harga_ara_sekarang = harga_dasar
     for i in range(max_steps):
-        board_type = 'acceleration' if is_acceleration else 'regular'
-        
-        # Acceleration Board Logic for Low Prices
-        if is_acceleration and harga_ara_sekarang <= 10:
-             harga_ara_baru = harga_ara_sekarang + 1
+        if is_fca:
+            # Peraturan BEI No. II-X: Papan Pemantauan Khusus (FCA) fraksi Rp 1, auto rejection 10%
+            if harga_ara_sekarang <= 10:
+                harga_ara_baru = harga_ara_sekarang + 1
+            else:
+                limit_price = harga_ara_sekarang * 1.10
+                harga_ara_baru = round_price_to_tick(limit_price, 1, 'floor')
+            if harga_ara_baru <= harga_ara_sekarang:
+                harga_ara_baru = harga_ara_sekarang + 1
+        elif is_acceleration:
+            # Papan Akselerasi: fraksi Rp 1, auto rejection 10%
+            if harga_ara_sekarang <= 10:
+                harga_ara_baru = harga_ara_sekarang + 1
+            else:
+                pct = get_ara_percentage(harga_ara_sekarang, 'acceleration')
+                limit_price = harga_ara_sekarang * (1 + pct)
+                harga_ara_baru = round_price_to_tick(limit_price, 1, 'floor')
+            if harga_ara_baru <= harga_ara_sekarang:
+                harga_ara_baru = harga_ara_sekarang + 1
         else:
-            pct = get_ara_arb_percentage(harga_ara_sekarang, board_type)
-            limit_price = harga_ara_sekarang * (1 + pct)
-            tick = get_tick_size(limit_price)
-            harga_ara_baru = round_price_to_tick(limit_price, tick, 'floor')
-            
-        if harga_ara_baru <= harga_ara_sekarang:
-             harga_ara_baru = harga_ara_sekarang + get_tick_size(harga_ara_sekarang)
+            # Papan Utama / Pengembangan / Ekonomi Baru (Reguler)
+            if harga_ara_sekarang <= 10:
+                # SK Direksi BEI No. Kep-00158/BEI/10-2026: harga Rp 1 s.d. Rp 10 ARA Rp 1 nominal
+                harga_ara_baru = harga_ara_sekarang + 1
+            else:
+                pct = get_ara_percentage(harga_ara_sekarang, 'regular')
+                limit_price = harga_ara_sekarang * (1 + pct)
+                tick = get_tick_size(limit_price)
+                harga_ara_baru = round_price_to_tick(limit_price, tick, 'floor')
+            if harga_ara_baru <= harga_ara_sekarang:
+                harga_ara_baru = harga_ara_sekarang + get_tick_size(harga_ara_sekarang)
 
         perubahan = harga_ara_baru - harga_ara_sekarang
         persentase_perubahan = (perubahan / harga_ara_sekarang) * 100 if harga_ara_sekarang > 0 else 0
@@ -115,28 +156,66 @@ def calculate_ara_arb_sequence(harga_dasar: float, is_acceleration: bool = False
     arb_sequence = []
     harga_arb_sekarang = harga_dasar
     for i in range(max_steps):
-        board_type = 'acceleration' if is_acceleration else 'regular'
-        
-        # Acceleration Board Logic for Low Prices
-        if is_acceleration and harga_arb_sekarang <= 10:
-             harga_arb_baru = max(1, harga_arb_sekarang - 1)
-        else:
-            # ARB for regular board: flat 15% (BEI regulation effective 8 April 2025)
-            # ARB for acceleration board: 10% (same as ARA)
-            if not is_acceleration:
-                pct = 0.15
+        if is_fca:
+            # FCA: fraksi Rp 1, auto rejection 10% simetris, batas bawah Rp 1
+            if harga_arb_sekarang <= 10:
+                harga_arb_baru = max(1, harga_arb_sekarang - 1)
             else:
-                pct = get_ara_arb_percentage(harga_arb_sekarang, board_type)
-                
-            limit_price = harga_arb_sekarang * (1 - pct)
-            tick = get_tick_size(limit_price)
-            harga_arb_baru = round_price_to_tick(limit_price, tick, 'ceil')
-        
+                limit_price = harga_arb_sekarang * 0.90
+                harga_arb_baru = round_price_to_tick(limit_price, 1, 'ceil')
+        elif is_acceleration:
+            # Papan Akselerasi: fraksi Rp 1, auto rejection 10%, batas bawah Rp 1
+            if harga_arb_sekarang <= 10:
+                harga_arb_baru = max(1, harga_arb_sekarang - 1)
+            else:
+                pct = get_arb_percentage(harga_arb_sekarang, 'acceleration')
+                limit_price = harga_arb_sekarang * (1 - pct)
+                harga_arb_baru = round_price_to_tick(limit_price, 1, 'ceil')
+        else:
+            # Papan Utama / Pengembangan / Ekonomi Baru (Reguler)
+            if regime == 'current_2026':
+                # SK Direksi BEI No. Kep-00158/BEI/10-2026:
+                # Harga Rp 1 s.d. Rp 10: ARB Rp 1 nominal
+                # Harga Rp 11 s.d. Rp 14: ARB Rp 1 nominal (karena 7% dari 11-14 < 1)
+                # Harga >= Rp 15: ARB 7% (asimetris)
+                if harga_arb_sekarang <= 14:
+                    harga_arb_baru = max(1, harga_arb_sekarang - 1)
+                else:
+                    pct = 0.07
+                    limit_price = harga_arb_sekarang * (1 - pct)
+                    tick = get_tick_size(limit_price)
+                    harga_arb_baru = round_price_to_tick(limit_price, tick, 'ceil')
+            elif regime == 'flat_15':
+                if harga_arb_sekarang <= 10:
+                    harga_arb_baru = max(1, harga_arb_sekarang - 1)
+                else:
+                    pct = 0.15
+                    limit_price = harga_arb_sekarang * (1 - pct)
+                    tick = get_tick_size(limit_price)
+                    harga_arb_baru = round_price_to_tick(limit_price, tick, 'ceil')
+            elif regime == 'symmetric':
+                if harga_arb_sekarang <= 10:
+                    harga_arb_baru = max(1, harga_arb_sekarang - 1)
+                else:
+                    pct = get_ara_percentage(harga_arb_sekarang, 'regular')
+                    limit_price = harga_arb_sekarang * (1 - pct)
+                    tick = get_tick_size(limit_price)
+                    harga_arb_baru = round_price_to_tick(limit_price, tick, 'ceil')
+            else:
+                if harga_arb_sekarang <= 14:
+                    harga_arb_baru = max(1, harga_arb_sekarang - 1)
+                else:
+                    pct = 0.07
+                    limit_price = harga_arb_sekarang * (1 - pct)
+                    tick = get_tick_size(limit_price)
+                    harga_arb_baru = round_price_to_tick(limit_price, tick, 'ceil')
+
+        # Batas minimum harga resmi BEI: Rp 1 (penghapusan batas bawah gocap Rp 50)
         if harga_arb_baru < 1:
             harga_arb_baru = 1
 
         if harga_arb_baru >= harga_arb_sekarang:
-             break  # Price stalled — no further meaningful ARB steps
+            break  # Stalled or reached minimum Rp 1
 
         perubahan = harga_arb_baru - harga_arb_sekarang
         persentase_perubahan = (perubahan / harga_arb_sekarang) * 100 if harga_arb_sekarang > 0 else 0
@@ -156,17 +235,59 @@ def calculate_ara_arb_sequence(harga_dasar: float, is_acceleration: bool = False
 
 
 def ara_arb_calculator_page() -> None:
-    st.info('Kalkulator untuk menghitung harga ARA (Auto Reject Above) dan ARB (Auto Reject Below) berdasarkan jenis papan')
+    st.info('Kalkulator untuk menghitung harga ARA (Auto Reject Above) dan ARB (Auto Reject Below) sesuai regulasi BEI / IDX terkini (SK Direksi BEI Kep-00158/BEI/10-2026, batas minimum Rp 1, & FCA Peraturan II-X).')
     
     col_input1, col_input2 = st.columns(2, gap="medium")
     
     with col_input1:
         st.markdown("""<div style='margin-bottom: 12px;'><h3 style='color: var(--text-color); margin-bottom: 12px;'>Kriteria Saham</h3></div>""", unsafe_allow_html=True)
-        board_type = st.radio("Pilih Jenis Papan", ["Papan Utama/Pengembangan", "Papan Akselerasi"], index=0, horizontal=True)
-        is_acceleration = board_type == "Papan Akselerasi"
+        board_choice = st.radio(
+            "Pilih Jenis Papan Perdagangan",
+            ["Papan Utama / Pengembangan / Ekonomi Baru", "Papan Pemantauan Khusus (FCA)", "Papan Akselerasi"],
+            index=0,
+            help="Sesuai pengelompokan papan pencatatan BEI terkini."
+        )
         
-        if not is_acceleration:
-            st.markdown("<p style='font-size:13px; margin-bottom:4px; color:var(--text-color); opacity:0.7;'>ARB: 15% (seragam, sesuai regulasi BEI efektif 8 April 2025)</p>", unsafe_allow_html=True)
+        regime = 'current_2026'
+        regime_label = 'ARB 7% Asimetris'
+        
+        if board_choice == "Papan Pemantauan Khusus (FCA)":
+            board_type = 'fca'
+            is_acceleration = False
+            regime = 'symmetric'
+            regime_label = 'Simetris 10%'
+            st.caption("ℹ️ **Peraturan BEI No. I-X / II-X (FCA)**: Auto Rejection Simetris 10% (ARA 10% & ARB 10%), Fraksi Flat Rp 1, Batas Minimum Rp 1.")
+        elif board_choice == "Papan Akselerasi":
+            board_type = 'acceleration'
+            is_acceleration = True
+            regime = 'symmetric'
+            regime_label = 'Simetris 10%'
+            st.caption("ℹ️ **Peraturan BEI No. II-V**: Auto Rejection 10%, Fraksi Flat Rp 1, Batas Minimum Rp 1 (Nominal Rp 1 untuk harga ≤ Rp 10).")
+        else:
+            board_type = 'regular'
+            is_acceleration = False
+            regime_choice = st.selectbox(
+                "Regulasi Auto Rejection",
+                [
+                    "Terkini (SK Kep-00158/BEI/10-2026: ARB 7% Asimetris)",
+                    "Normalisasi (ARB 15% Flat)",
+                    "Simetris Penuh (35% / 25% / 20%)"
+                ],
+                index=0,
+                help="Pilih skema batas auto rejection bursa."
+            )
+            if "7%" in regime_choice:
+                regime = 'current_2026'
+                regime_label = 'ARB 7% Asimetris'
+                st.caption("🏛️ **SK Direksi BEI No. Kep-00158/BEI/10-2026 (Efektif 20 Okt 2026)**: ARB 7% asimetris, nominal Rp 1 untuk harga Rp 1–10 dan ARB 11–14. Batas minimum resmi Rp 1.")
+            elif "15%" in regime_choice:
+                regime = 'flat_15'
+                regime_label = 'ARB 15% Flat'
+                st.caption("🏛️ **SK Direksi BEI 2025**: ARB Flat 15% seragam untuk semua rentang harga.")
+            else:
+                regime = 'symmetric'
+                regime_label = 'Simetris Penuh'
+                st.caption("🏛️ **Simetris Penuh**: Batas ARA dan ARB seimbang (35% / 25% / 20%).")
             
         st.markdown("<p style='font-size:14px; margin-bottom:4px; margin-top:12px; font-weight:500;'>Mode Kalkulator</p>", unsafe_allow_html=True)
         calc_mode = st.radio("Mode Kalkulator", ["Manual (Berdasarkan Langkah)", "Preset Skenario (ARA Beruntun, FCA)"], index=0, horizontal=True, label_visibility="collapsed")
@@ -208,9 +329,10 @@ def ara_arb_calculator_page() -> None:
     if st.button('Hitung', type='primary', use_container_width=True):
         fee_beli_final = fee_beli if include_fee_beli else 0
         fee_jual_final = fee_jual if include_fee_jual else 0
+        board_display_name = 'Papan Pemantauan Khusus (FCA)' if board_type == 'fca' else ('Papan Akselerasi' if board_type == 'acceleration' else f'Papan Utama / Pengembangan / Ekonomi Baru ({regime_label})')
         
         if calc_mode == "Preset Skenario (ARA Beruntun, FCA)":
-            preset_sequence = calculate_preset_ara_beruntun(harga_penutupan, is_acceleration)
+            preset_sequence = calculate_preset_ara_beruntun(harga_penutupan, is_acceleration, board_type=board_type)
             # --- Compute initial (base) values for header ---
             base_gross = harga_penutupan * jumlah_lot * 100
             base_net = base_gross * (1 - fee_jual_final)
@@ -222,7 +344,7 @@ def ara_arb_calculator_page() -> None:
 <div style="width:38px; height:38px; border-radius:10px; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:1.2rem;">🚀</div>
 <div>
 <div style="font-size:1.05rem; font-weight:700; color:white;">Simulasi ARA Beruntun</div>
-<div style="font-size:0.75rem; color:rgba(255,255,255,0.6);">{'Papan Akselerasi' if is_acceleration else 'Papan Utama / Pengembangan'}</div>
+<div style="font-size:0.75rem; color:rgba(255,255,255,0.6);">{board_display_name}</div>
 </div>
 </div>
 <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
@@ -369,7 +491,7 @@ def ara_arb_calculator_page() -> None:
 """, unsafe_allow_html=True)
             
         else:
-            ara_list, arb_list = calculate_ara_arb_sequence(harga_penutupan, is_acceleration, max_steps)
+            ara_list, arb_list = calculate_ara_arb_sequence(harga_penutupan, is_acceleration, max_steps, board_type=board_type, regime=regime)
             
             # --- Compute initial (base) values for header ---
             base_gross = harga_penutupan * jumlah_lot * 100
@@ -381,7 +503,7 @@ def ara_arb_calculator_page() -> None:
 <div style="width:38px; height:38px; border-radius:10px; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:1.2rem;">📊</div>
 <div>
 <div style="font-size:1.05rem; font-weight:700; color:white;">Proyeksi Manual ARA & ARB</div>
-<div style="font-size:0.75rem; color:rgba(255,255,255,0.6);">{'Papan Akselerasi' if is_acceleration else 'Papan Utama / Pengembangan'}</div>
+<div style="font-size:0.75rem; color:rgba(255,255,255,0.6);">{board_display_name}</div>
 </div>
 </div>
 <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">

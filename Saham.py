@@ -270,10 +270,11 @@ def main() -> None:
                 """,
                 unsafe_allow_html=True,
             )
+            platforms = list(PLATFORM_CONFIG.keys())
             calculator_submenu = option_menu(
                 None,
-                ["IPOT", "Stockbit", "BNI Bions", "Custom"],
-                icons=["calculator", "calculator", "calculator", "calculator"],
+                platforms,
+                icons=["calculator"] * len(platforms),
                 menu_icon="calculator",
                 default_index=0,
                 orientation="horizontal",

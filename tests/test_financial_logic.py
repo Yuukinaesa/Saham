@@ -31,8 +31,15 @@ except ImportError:
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from pages_calculators import calculate_profit_loss
-from pages_ara_arb import calculate_ara_arb_sequence
-from utils import get_tick_size, get_ara_arb_percentage, round_price_to_tick
+from pages_ara_arb import calculate_ara_arb_sequence, calculate_preset_ara_beruntun
+from utils import (
+    get_tick_size,
+    get_ara_percentage,
+    get_arb_percentage,
+    get_ara_arb_percentage,
+    round_price_to_tick,
+    normalize_pbv,
+)
 
 class TestFinancialLogic(unittest.TestCase):
 
@@ -120,6 +127,74 @@ class TestFinancialLogic(unittest.TestCase):
         if arb_seq:
             self.assertLess(arb_seq[0]['harga'], 1000)
             self.assertEqual(arb_seq[0]['tipe'], 'arb')
+
+    def test_normalize_pbv(self):
+        # Normal IDR company - no adjustment
+        self.assertEqual(normalize_pbv(2.5, 'IDR', 'IDR'), 2.5)
+        # Zero or negative
+        self.assertEqual(normalize_pbv(0, 'IDR', 'IDR'), 0.0)
+        self.assertEqual(normalize_pbv(-1, 'IDR', 'IDR'), 0.0)
+        # USD company with distorted raw PBV (~16,500)
+        norm = normalize_pbv(16500.0, 'USD', 'IDR')
+        self.assertAlmostEqual(norm, 1.0, delta=0.5)
+
+    def test_fca_preset_uses_tick_one(self):
+        # Calculate preset sequence starting from 100
+        preset = calculate_preset_ara_beruntun(100)
+        fca_items = [p for p in preset if p['tipe'] == 'fca']
+        self.assertTrue(len(fca_items) > 0)
+        # Prices in FCA must be integers because tick size is Rp 1
+        for item in fca_items:
+            self.assertEqual(item['harga'], int(item['harga']))
+
+    def test_ara_percentage_and_arb_percentage_regimes(self):
+        # Test get_ara_percentage
+        self.assertEqual(get_ara_percentage(5), 0)  # Nominal Rp 1 per Kep-00158/BEI/10-2026
+        self.assertEqual(get_ara_percentage(100), 0.35)
+        self.assertEqual(get_ara_percentage(1000), 0.25)
+        self.assertEqual(get_ara_percentage(6000), 0.20)
+        self.assertEqual(get_ara_percentage(100, board='acceleration'), 0.10)
+        self.assertEqual(get_ara_percentage(100, board='fca'), 0.10)
+        
+        # Test get_arb_percentage under different regimes
+        self.assertEqual(get_arb_percentage(1000, regime='current_2026'), 0.07)
+        self.assertEqual(get_arb_percentage(1000, regime='flat_15'), 0.15)
+        self.assertEqual(get_arb_percentage(1000, regime='symmetric'), 0.25)
+        self.assertEqual(get_arb_percentage(100, board='acceleration'), 0.10)
+        self.assertEqual(get_arb_percentage(100, board='fca'), 0.10)
+
+    def test_calculate_ara_arb_sequence_current_2026_asymmetric_7pct(self):
+        # Regular board with price 1000: ARA 25% (tick 10), ARB 7% (tick 5)
+        ara_seq, arb_seq = calculate_ara_arb_sequence(1000, max_steps=2, board_type='regular', regime='current_2026')
+        # Step 1 ARA: 1000 * 1.25 = 1250
+        self.assertEqual(ara_seq[0]['harga'], 1250)
+        # Step 1 ARB: 1000 * (1 - 0.07) = 930
+        self.assertEqual(arb_seq[0]['harga'], 930)
+
+    def test_calculate_ara_arb_sequence_low_prices_nominal_rp1(self):
+        # SK Direksi BEI No. Kep-00158/BEI/10-2026:
+        # Prices <= 10 have nominal Rp 1 rejection
+        ara_seq, arb_seq = calculate_ara_arb_sequence(5, max_steps=1, board_type='regular', regime='current_2026')
+        self.assertEqual(ara_seq[0]['harga'], 6)
+        self.assertEqual(arb_seq[0]['harga'], 4)
+        
+        # Prices 11 to 14: ARB is nominal Rp 1 because 7% of 11-14 < 1
+        _, arb_seq_14 = calculate_ara_arb_sequence(14, max_steps=1, board_type='regular', regime='current_2026')
+        self.assertEqual(arb_seq_14[0]['harga'], 13)
+
+    def test_calculate_ara_arb_sequence_fca_board(self):
+        # FCA: Peraturan BEI No. II-X -> ARA 10%, ARB 10%, fraksi flat Rp 1, harga min Rp 1
+        ara_seq, arb_seq = calculate_ara_arb_sequence(100, max_steps=1, board_type='fca')
+        self.assertEqual(ara_seq[0]['harga'], 110)
+        self.assertEqual(arb_seq[0]['harga'], 90)
+
+    def test_penghapusan_batas_gocap_to_rp1(self):
+        # Under new BEI rules, price can fall below Rp 50 down to Rp 1 (no stall at 50)
+        _, arb_seq = calculate_ara_arb_sequence(50, max_steps=5, board_type='regular', regime='current_2026')
+        self.assertTrue(len(arb_seq) > 0)
+        # Price at step 1 should drop below 50: 50 * 0.93 = 46.5 -> round ceil tick 1 = 47
+        self.assertEqual(arb_seq[0]['harga'], 47)
+        self.assertLess(arb_seq[0]['harga'], 50)
 
 if __name__ == '__main__':
     unittest.main()

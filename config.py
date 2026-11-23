@@ -8,6 +8,9 @@ FRACSI_HARGA_DATA = {
 PLATFORM_CONFIG = {
     "IPOT": (0.0019, 0.0029),
     "Stockbit": (0.0015, 0.0025),
+    "Ajaib": (0.0015, 0.0025),
+    "Mirae Asset": (0.0015, 0.0025),
+    "Mandiri Sekuritas": (0.0018, 0.0028),
     "BNI Bions": (0.0017, 0.0027),
     "Custom": (0, 0)
 }

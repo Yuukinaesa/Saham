@@ -3,7 +3,7 @@ import pandas as pd
 import yfinance as yf
 import plotly.express as px
 from config import MARKET_INDICES
-from utils import format_rupiah, format_percent, format_large_number
+from utils import format_rupiah, format_percent, format_large_number, get_resilient_session
 from state_manager import get_param, set_param
 
 import time
@@ -26,7 +26,8 @@ def fetch_market_overview(symbols):
         df = None
         for attempt in range(MAX_RETRY + 1):
             try:
-                df = yf.download(tickers, period="2d", group_by="ticker", progress=False, threads=False, timeout=15)
+                sess = get_resilient_session()
+                df = yf.download(tickers, period="2d", group_by="ticker", progress=False, threads=False, timeout=15, auto_adjust=False, session=sess)
                 if df is not None and not df.empty:
                     break
             except Exception:

@@ -116,20 +116,20 @@ def haka_vs_limit_calculator(title: str, fee_beli: float) -> None:
     with col_input:
         st.markdown('**Input Modal & Harga**')
         modal = st.number_input("Total Modal (Buying Power)", min_value=100000, step=100000, value=1000000)
-        harga_input = st.number_input("Harga Saham Saat Ini (Offer)", min_value=50, step=1, value=200)
+        harga_input = st.number_input("Harga Saham Saat Ini (Offer)", min_value=1, step=1, value=200)
 
-    # Calculate ARA logic locally to determine safe HAKA price
-    if is_acceleration and harga_input <= 10:
+    # Calculate ARA logic locally to determine safe HAKA price (BEI Kep-00158/BEI/10-2026)
+    if harga_input <= 10:
         harga_ara = harga_input + 1
     else:
-        pct = get_ara_arb_percentage(harga_input, board_type)
+        pct = get_ara_percentage(harga_input, board_type)
         limit_price = harga_input * (1 + pct)
-        tick = get_tick_size(limit_price)
+        tick = 1 if is_acceleration else get_tick_size(limit_price)
         harga_ara = round_price_to_tick(limit_price, tick, 'floor')
         
         # Ensure ARA is at least 1 tick above if price didn't move
         if harga_ara <= harga_input:
-             harga_ara = harga_input + get_tick_size(harga_input)
+             harga_ara = harga_input + (1 if is_acceleration else get_tick_size(harga_input))
 
     if st.button("Hitung Perbandingan", type="primary", use_container_width=True):
         # 1. Limit Order Calculation

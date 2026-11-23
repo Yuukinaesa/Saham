@@ -2,7 +2,17 @@ import streamlit as st
 import pandas as pd
 import yfinance as yf
 import datetime
-from utils import format_rupiah, format_percent, format_large_number, get_tick_size, round_price_to_tick
+from utils import (
+    format_rupiah,
+    format_percent,
+    format_large_number,
+    get_tick_size,
+    round_price_to_tick,
+    normalize_pbv,
+    _safe_float,
+    get_resilient_session,
+    fetch_direct_quote_summary,
+)
 from state_manager import get_param, set_param
 
 # Plotly Imports
@@ -410,23 +420,27 @@ def get_stock_data(symbol):
     try:
         ticker_symbol = f"{symbol}.JK" if not symbol.endswith(".JK") and not symbol.startswith("^") else symbol
         
-        # 1. Fetch Ticker Object
-        ticker = yf.Ticker(ticker_symbol)
+        # 1. Fetch Ticker Object with browser impersonation session
+        sess = get_resilient_session()
+        ticker = yf.Ticker(ticker_symbol, session=sess)
         
         # 2. Fetch History (5 Tahun terakhir untuk teknikal & seasonality)
         history = ticker.history(period="5y")
         if history.empty:
             st.toast(f"⚠️ Peringatan: Data riwayat harga {ticker_symbol} kosong atau gagal dimuat!", icon="⚠️")
         
-        # 3. Fetch Info (Fundamental)
+        # 3. Fetch Info (Fundamental) with direct quoteSummary fallback
         info = {}
         try:
-            info = ticker.info
-            if not info or len(info) == 0:
-                st.toast(f"⚠️ Peringatan: Data info fundamental {ticker_symbol} tidak ditemukan!", icon="⚠️")
+            info = ticker.info or {}
         except Exception:
-            st.toast(f"⚠️ Peringatan: Gagal mengambil data fundamental {ticker_symbol}!", icon="⚠️")
             info = {}
+            
+        if not info or len(info) <= 1:
+            info = fetch_direct_quote_summary(ticker_symbol, sess)
+
+        if not info or len(info) == 0:
+            st.toast(f"⚠️ Peringatan: Data info fundamental {ticker_symbol} tidak ditemukan!", icon="⚠️")
             
         # 5. Fetch Analyst Recommendations
         recommendations = None
@@ -993,19 +1007,32 @@ def render_fundamental(info):
         pe = info.get('trailingPE', 0)
         st.metric("PER (Price/Earnings)", f"{pe:.2f}x" if pe else "-")
     with m3:
-        pbv = info.get('priceToBook', 0)
-        st.metric("PBV (Price/Book)", f"{pbv:.2f}x" if pbv else "-")
+        raw_pbv = info.get('priceToBook', 0)
+        fin_curr = info.get('financialCurrency', 'IDR')
+        curr = info.get('currency', 'IDR')
+        norm_pbv = normalize_pbv(raw_pbv, fin_curr, curr)
+        if norm_pbv:
+            note = " (Adj USD)" if (fin_curr == 'USD' or raw_pbv > 500) else ""
+            st.metric("PBV (Price/Book)", f"{norm_pbv:.2f}x{note}")
+        else:
+            st.metric("PBV (Price/Book)", "-")
     with m4:
         roe = info.get('returnOnEquity', 0)
         st.metric("ROE", f"{roe*100:.2f}%" if roe else "-")
 
     m5, m6, m7, m8 = st.columns(4)
     with m5:
-        dy = info.get('dividendYield', 0)
-        # Handle decimal vs percent ambiguity
-        if dy:
-             dy_val = dy * 100 if dy < 1 else dy
-             st.metric("Dividend Yield", f"{dy_val:.2f}%")
+        dy = _safe_float(info.get('dividendYield', 0))
+        if dy > 0:
+            d_rate = _safe_float(info.get('dividendRate', 0))
+            p_cand = _safe_float(info.get('currentPrice') or info.get('regularMarketPrice', 0))
+            # Handle rare decimal fraction (e.g. 0.0686) vs standard percentage (e.g. 6.86, 0.53)
+            if 0 < dy < 0.2 and d_rate > 0 and p_cand > 0:
+                calc_pct = (d_rate / p_cand) * 100
+                dy_val = dy * 100 if abs(dy * 100 - calc_pct) < abs(dy - calc_pct) else dy
+            else:
+                dy_val = dy
+            st.metric("Dividend Yield", f"{dy_val:.2f}%")
         else:
             st.metric("Dividend Yield", "-")
             
