@@ -30,15 +30,15 @@ def apply_global_css() -> None:
             background-color: var(--background-color);
         }
 
-        /* Titles */
+        /* Titles (Fluid Clamp Typography) */
         h1, h2, h3 {
             color: var(--text-color); 
             font-weight: 700; 
             letter-spacing: -0.025em;
         }
-        h1 { font-size: 2.25rem; }
-        h2 { font-size: 1.5rem; }
-        h3 { font-size: 1.25rem; }
+        h1 { font-size: clamp(1.5rem, 3.5vw + 0.8rem, 2.25rem); line-height: 1.25; }
+        h2 { font-size: clamp(1.25rem, 2.5vw + 0.6rem, 1.65rem); line-height: 1.3; }
+        h3 { font-size: clamp(1.05rem, 2vw + 0.5rem, 1.35rem); line-height: 1.35; }
 
         /* Buttons (Premium Gradient & Shadow) */
         div.stButton > button {
@@ -174,10 +174,119 @@ def apply_global_css() -> None:
             border-radius: 8px !important;
         }
         
-        /* Adjust specific alert colors if possible, but stAlert catches inner content usually. 
-           We can rely on Streamlit's default colorful left border, or style specific types if needed.
-           For better dark mode, we just ensure the big block isn't white. 
-        */
+        /* Touch-friendly input heights (WCAG 2.2 AA) */
+        .stTextInput input,
+        .stNumberInput input,
+        .stSelectbox select {
+            min-height: 44px !important;
+        }
+
+        /* Smooth touch scrolling for tables and charts */
+        [data-testid="stDataFrame"],
+        div[data-testid="stTable"] {
+            -webkit-overflow-scrolling: touch !important;
+            border-radius: 8px !important;
+        }
+
+        /* =======================================================
+           RESPONSIVE MOBILE BREAKPOINTS (< 768px & < 640px)
+           ======================================================= */
+        @media screen and (max-width: 768px) {
+            /* Transform left-column menu into a modern horizontal scrollable pill bar */
+            div[data-testid="column"]:first-child {
+                width: 100% !important;
+                flex: 1 1 100% !important;
+                margin-bottom: 0px !important;
+            }
+            div[data-testid="column"]:first-child h2 {
+                display: none !important; /* Hide redundant Menu heading on mobile */
+            }
+            div[data-testid="column"]:first-child > div {
+                padding: 0 !important;
+            }
+
+            .stOptionMenu ul.nav {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                gap: 8px !important;
+                padding: 4px 2px 12px 2px !important;
+                scrollbar-width: thin !important;
+            }
+            .stOptionMenu ul.nav::-webkit-scrollbar {
+                height: 4px;
+            }
+            .stOptionMenu ul.nav::-webkit-scrollbar-thumb {
+                background: rgba(128, 128, 128, 0.35);
+                border-radius: 4px;
+            }
+            .stOptionMenu ul.nav li.nav-item {
+                flex: 0 0 auto !important;
+                width: auto !important;
+            }
+            .stOptionMenu ul.nav a.nav-link {
+                white-space: nowrap !important;
+                padding: 8px 14px !important;
+                font-size: 13px !important;
+                border-radius: 9999px !important;
+                border: 1px solid rgba(128, 128, 128, 0.25) !important;
+                background-color: var(--secondary-background-color) !important;
+                box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+                min-height: 40px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+            }
+            .stOptionMenu ul.nav a.nav-link-selected {
+                background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+                color: #ffffff !important;
+                border-color: #1d4ed8 !important;
+                border-left: none !important;
+                font-weight: 600 !important;
+                box-shadow: 0 3px 8px rgba(37, 99, 235, 0.3) !important;
+            }
+            .stOptionMenu ul.nav a.nav-link-selected i,
+            .stOptionMenu ul.nav a.nav-link-selected svg {
+                color: #ffffff !important;
+            }
+        }
+
+        @media screen and (max-width: 640px) {
+            /* Compact card padding on mobile screens to maximize readable area */
+            .premium-card {
+                padding: 16px !important;
+                margin-bottom: 14px !important;
+                border-radius: 10px !important;
+            }
+
+            /* Responsive stacking for custom multi-column grids in cards */
+            .premium-card div[style*="grid-template-columns"] {
+                grid-template-columns: 1fr !important;
+                gap: 10px !important;
+            }
+
+            /* Full-width primary action buttons on mobile */
+            div.stButton > button,
+            div.stDownloadButton > button {
+                width: 100% !important;
+            }
+
+            /* Compact metrics on mobile */
+            div[data-testid="stMetric"] {
+                padding: 10px 12px !important;
+            }
+            div[data-testid="stMetricLabel"] {
+                font-size: 11px !important;
+                white-space: normal !important;
+                line-height: 1.25 !important;
+            }
+            div[data-testid="stMetricValue"] {
+                font-size: 18px !important;
+                line-height: 1.2 !important;
+            }
+        }
     </style>
     """
     st.markdown(css, unsafe_allow_html=True)
@@ -187,7 +296,10 @@ def main() -> None:
     try:
         locale.setlocale(locale.LC_ALL, "id_ID.UTF-8")
     except Exception:
-        pass
+        try:
+            locale.setlocale(locale.LC_ALL, "Indonesian_Indonesia.1252")
+        except Exception:
+            pass
 
     st.set_page_config(
         page_title="Saham IDX",

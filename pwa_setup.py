@@ -120,7 +120,7 @@ def inject_keepalive(interval_minutes: int = 5):
         if (window._keepAliveTimer) return;
 
         const INTERVAL_MS = {interval_ms};
-        const appUrl = window.location.href;
+        const appUrl = window.location.origin + window.location.pathname;
 
         function ping() {{
             fetch(appUrl, {{

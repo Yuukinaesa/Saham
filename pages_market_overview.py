@@ -210,101 +210,115 @@ def market_overview_page():
         )
         
         fig.update_layout(
-            margin=dict(t=0, l=0, r=0, b=0),
-            height=600,
+            margin=dict(t=10, l=0, r=0, b=30),
+            height=540,
+            coloraxis_colorbar=dict(
+                orientation='h',
+                y=-0.12,
+                x=0.5,
+                xanchor='center',
+                len=0.75,
+                thickness=14,
+                title=dict(text="Change %", side="top", font=dict(size=12))
+            )
         )
         st.plotly_chart(fig, width='stretch')
         
-    # --- DATA TABLES ---
-    c1, c2 = st.columns(2)
+    # --- DATA TABLES / RANKINGS ---
+    st.markdown("### 🏆 Peringkat Pasar")
+    tab_rank1, tab_rank2, tab_rank3 = st.tabs([
+        "🚀 Gainers & Losers", 
+        "🌊 Volume & Turnover", 
+        "🟢 Akumulasi & Distribusi"
+    ])
     
-    with c1:
-        st.markdown("#### 🚀 Top Gainers")
-        top_g = df.sort_values(by="Change %", ascending=False).head(10)
-        for _, row in top_g.iterrows():
-            sym_clean = html.escape(str(row['Symbol']))
-            st.markdown(f"""
-            <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(16,185,129,0.1); border-radius:4px;'>
-                <span style='font-weight:bold;'>{sym_clean}</span>
-                <span style='color:#10b981; font-weight:bold;'>+{row['Change %']:.2f}%</span>
-            </div>
-            """, unsafe_allow_html=True)
-            
-    with c2:
-        st.markdown("#### 🔻 Top Losers")
-        top_l = df.sort_values(by="Change %", ascending=True).head(10)
-        for _, row in top_l.iterrows():
-            sym_clean = html.escape(str(row['Symbol']))
-            st.markdown(f"""
-            <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(239,68,68,0.1); border-radius:4px;'>
-                <span style='font-weight:bold;'>{sym_clean}</span>
-                <span style='color:#ef4444; font-weight:bold;'>{row['Change %']:.2f}%</span>
-            </div>
-            """, unsafe_allow_html=True)
-            
-    st.markdown("<br>", unsafe_allow_html=True)
-    c3, c4 = st.columns(2)
-    
-    with c3:
-        st.markdown("#### 🌊 Most Active Volume")
-        top_v = df.sort_values(by="Volume", ascending=False).head(10)
-        for _, row in top_v.iterrows():
-            sym_clean = html.escape(str(row['Symbol']))
-            vol_lot = row['Volume'] / 100
-            st.markdown(f"""
-            <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:var(--secondary-background-color); border-radius:4px; border: 1px solid rgba(128,128,128,0.2);'>
-                <span style='font-weight:bold;'>{sym_clean}</span>
-                <span style='font-weight:bold; opacity: 0.9;'>{format_large_number(vol_lot)} Lot</span>
-            </div>
-            """, unsafe_allow_html=True)
-            
-    with c4:
-        st.markdown("#### 💼 Most Active Value (Turnover)")
-        top_t = df.sort_values(by="Turnover", ascending=False).head(10)
-        for _, row in top_t.iterrows():
-            sym_clean = html.escape(str(row['Symbol']))
-            st.markdown(f"""
-            <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:var(--secondary-background-color); border-radius:4px; border: 1px solid rgba(128,128,128,0.2);'>
-                <span style='font-weight:bold;'>{sym_clean}</span>
-                <span style='font-weight:bold; color:#3b82f6;'>Rp {format_large_number(row['Turnover'])}</span>
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-    c5, c6 = st.columns(2)
-    
-    with c5:
-        st.markdown("#### 🟢 Top Akumulasi (Value + Gain)")
-        df_acc = df[df['Change %'] > 0]
-        top_acc = df_acc.sort_values(by="Turnover", ascending=False).head(10)
-        if top_acc.empty:
-            st.info("Tidak ada data akumulasi.")
-        for _, row in top_acc.iterrows():
-            sym_clean = html.escape(str(row['Symbol']))
-            st.markdown(f"""
-            <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(16,185,129,0.1); border-radius:4px; border: 1px solid rgba(16,185,129,0.3);'>
-                <span style='font-weight:bold;'>{sym_clean}</span>
-                <div style='text-align: right;'>
-                    <span style='color:#10b981; font-weight:bold; font-size: 13px; display:block;'>+{row['Change %']:.2f}%</span>
-                    <span style='font-weight:600; font-size: 11px; opacity: 0.8;'>Rp {format_large_number(row['Turnover'])}</span>
+    with tab_rank1:
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("#### 🚀 Top Gainers")
+            top_g = df.sort_values(by="Change %", ascending=False).head(10)
+            for _, row in top_g.iterrows():
+                sym_clean = html.escape(str(row['Symbol']))
+                st.markdown(f"""
+                <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(16,185,129,0.1); border-radius:4px;'>
+                    <span style='font-weight:bold;'>{sym_clean}</span>
+                    <span style='color:#10b981; font-weight:bold;'>+{row['Change %']:.2f}%</span>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    with c6:
-        st.markdown("#### 🔴 Top Distribusi (Value + Loss)")
-        df_dist = df[df['Change %'] < 0]
-        top_dist = df_dist.sort_values(by="Turnover", ascending=False).head(10)
-        if top_dist.empty:
-            st.info("Tidak ada data distribusi.")
-        for _, row in top_dist.iterrows():
-            sym_clean = html.escape(str(row['Symbol']))
-            st.markdown(f"""
-            <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(239,68,68,0.1); border-radius:4px; border: 1px solid rgba(239,68,68,0.3);'>
-                <span style='font-weight:bold;'>{sym_clean}</span>
-                <div style='text-align: right;'>
-                    <span style='color:#ef4444; font-weight:bold; font-size: 13px; display:block;'>{row['Change %']:.2f}%</span>
-                    <span style='font-weight:600; font-size: 11px; opacity: 0.8;'>Rp {format_large_number(row['Turnover'])}</span>
+                """, unsafe_allow_html=True)
+                
+        with c2:
+            st.markdown("#### 🔻 Top Losers")
+            top_l = df.sort_values(by="Change %", ascending=True).head(10)
+            for _, row in top_l.iterrows():
+                sym_clean = html.escape(str(row['Symbol']))
+                st.markdown(f"""
+                <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(239,68,68,0.1); border-radius:4px;'>
+                    <span style='font-weight:bold;'>{sym_clean}</span>
+                    <span style='color:#ef4444; font-weight:bold;'>{row['Change %']:.2f}%</span>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+            
+    with tab_rank2:
+        c3, c4 = st.columns(2)
+        with c3:
+            st.markdown("#### 🌊 Most Active Volume")
+            top_v = df.sort_values(by="Volume", ascending=False).head(10)
+            for _, row in top_v.iterrows():
+                sym_clean = html.escape(str(row['Symbol']))
+                vol_lot = row['Volume'] / 100
+                st.markdown(f"""
+                <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:var(--secondary-background-color); border-radius:4px; border: 1px solid rgba(128,128,128,0.2);'>
+                    <span style='font-weight:bold;'>{sym_clean}</span>
+                    <span style='font-weight:bold; opacity: 0.9;'>{format_large_number(vol_lot)} Lot</span>
+                </div>
+                """, unsafe_allow_html=True)
+                
+        with c4:
+            st.markdown("#### 💼 Most Active Value (Turnover)")
+            top_t = df.sort_values(by="Turnover", ascending=False).head(10)
+            for _, row in top_t.iterrows():
+                sym_clean = html.escape(str(row['Symbol']))
+                st.markdown(f"""
+                <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:var(--secondary-background-color); border-radius:4px; border: 1px solid rgba(128,128,128,0.2);'>
+                    <span style='font-weight:bold;'>{sym_clean}</span>
+                    <span style='font-weight:bold; color:#3b82f6;'>Rp {format_large_number(row['Turnover'])}</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+    with tab_rank3:
+        c5, c6 = st.columns(2)
+        with c5:
+            st.markdown("#### 🟢 Top Akumulasi (Value + Gain)")
+            df_acc = df[df['Change %'] > 0]
+            top_acc = df_acc.sort_values(by="Turnover", ascending=False).head(10)
+            if top_acc.empty:
+                st.info("Tidak ada data akumulasi.")
+            for _, row in top_acc.iterrows():
+                sym_clean = html.escape(str(row['Symbol']))
+                st.markdown(f"""
+                <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(16,185,129,0.1); border-radius:4px; border: 1px solid rgba(16,185,129,0.3);'>
+                    <span style='font-weight:bold;'>{sym_clean}</span>
+                    <div style='text-align: right;'>
+                        <span style='color:#10b981; font-weight:bold; font-size: 13px; display:block;'>+{row['Change %']:.2f}%</span>
+                        <span style='font-weight:600; font-size: 11px; opacity: 0.8;'>Rp {format_large_number(row['Turnover'])}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+        with c6:
+            st.markdown("#### 🔴 Top Distribusi (Value + Loss)")
+            df_dist = df[df['Change %'] < 0]
+            top_dist = df_dist.sort_values(by="Turnover", ascending=False).head(10)
+            if top_dist.empty:
+                st.info("Tidak ada data distribusi.")
+            for _, row in top_dist.iterrows():
+                sym_clean = html.escape(str(row['Symbol']))
+                st.markdown(f"""
+                <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(239,68,68,0.1); border-radius:4px; border: 1px solid rgba(239,68,68,0.3);'>
+                    <span style='font-weight:bold;'>{sym_clean}</span>
+                    <div style='text-align: right;'>
+                        <span style='color:#ef4444; font-weight:bold; font-size: 13px; display:block;'>{row['Change %']:.2f}%</span>
+                        <span style='font-weight:600; font-size: 11px; opacity: 0.8;'>Rp {format_large_number(row['Turnover'])}</span>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
