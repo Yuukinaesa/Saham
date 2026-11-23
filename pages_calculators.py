@@ -421,6 +421,7 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
             )
             st.markdown("### Detail Per Saham")
             detail_data = []
+            download_rows = []
             for stock in result['stocks_results']:
                 detail_data.append({
                     'Symbol': stock['symbol'],
@@ -432,14 +433,19 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
                     'Profit/Loss': format_rupiah(stock['profit_loss']),
                     'Profit/Loss %': format_percent(stock['profit_loss_percentage'], 2)
                 })
+                download_rows.append({
+                    'Symbol': stock['symbol'],
+                    'Lot': stock['jumlah_lot'],
+                    'Harga Beli': format_csv_indonesia(stock['harga_beli'], 0),
+                    'Harga Jual': format_csv_indonesia(stock['harga_jual'], 0),
+                    'Total Beli': format_csv_indonesia(stock['total_beli'], 0),
+                    'Total Jual': format_csv_indonesia(stock['total_jual'], 0),
+                    'Profit/Loss': format_csv_indonesia(stock['profit_loss'], 0),
+                    'Profit/Loss %': format_csv_indonesia(stock['profit_loss_percentage'], 2),
+                })
             df_detail = pd.DataFrame(detail_data)
             st.dataframe(df_detail, use_container_width=True, hide_index=True)
-            df_download = df_detail.copy()
-            for col in df_download.columns:
-                if col in ['Harga Beli', 'Harga Jual', 'Total Beli', 'Total Jual', 'Profit/Loss']:
-                    df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
-                elif col in ['Profit/Loss %']:
-                    df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 2) if pd.notna(x) else "0")
+            df_download = pd.DataFrame(download_rows)
             csv = safe_dataframe_to_csv(df_download, index=False)
             st.download_button(label="📥 Download as CSV", data=csv, file_name="kalkulator_saham.csv", mime="text/csv")
 
@@ -527,14 +533,14 @@ def rata_rata_harga_calculator() -> None:
         if st.button("Hitung", type="primary", key="m2_btn"):
             total_saham_skrg = lot_skrg * 100
             total_nilai_skrg = total_saham_skrg * avg_skrg
-            denom = target - harga_beli
 
             st.markdown("---")
-            if denom >= 0:
+            if harga_beli >= target:
                 st.warning("⚠️ Harga beli tambahan harus LEBIH RENDAH dari target rata-rata.")
             elif target >= avg_skrg:
                 st.info("ℹ️ Target sudah ≥ rata-rata sekarang. Tidak perlu averaging.")
             else:
+                denom = target - harga_beli
                 x = math.ceil((total_nilai_skrg - target * total_saham_skrg) / (100 * denom))
                 modal        = x * 100 * harga_beli
                 lot_baru     = lot_skrg + x

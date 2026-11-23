@@ -31,13 +31,14 @@ def right_issue_calculator_page():
     if st.button("Hitung Simulasi", type="primary"):
         # 1. Theoretical Ex-Price Calculation
         # Formula: ((Harga Cum * Rasio Lama) + (Harga Tebus * Rasio Baru)) / (Rasio Lama + Rasio Baru)
-        total_rasio = rasio_lama + rasio_baru
-        harga_teoritis = ((harga_cum * rasio_lama) + (harga_tebus * rasio_baru)) / total_rasio
+        safe_rasio_lama = max(1, rasio_lama)
+        total_rasio = max(1, safe_rasio_lama + rasio_baru)
+        harga_teoritis = ((harga_cum * safe_rasio_lama) + (harga_tebus * rasio_baru)) / total_rasio
         
         # 2. Rights Calculation
         total_saham_induk = modal_lot * 100
         # HMETD Received = (Saham Induk / Rasio Lama) * Rasio Baru
-        jumlah_hmetd_lembar = (total_saham_induk / rasio_lama) * rasio_baru
+        jumlah_hmetd_lembar = (total_saham_induk / safe_rasio_lama) * rasio_baru
         jumlah_hmetd_lot = jumlah_hmetd_lembar / 100 # Can be fractional
         
         # 3. Cost to Exercise
@@ -52,7 +53,6 @@ def right_issue_calculator_page():
         dilusi_persen = (rasio_baru / total_rasio) * 100
         
         # --- DISPLAY ---
-        
         st.markdown("""
         <div style='margin-bottom: 20px; text-align: center;'>
             <h3 style='color: var(--text-color); margin-bottom: 5px; font-size: 1.25rem;'>📉 Analisa Right Issue</h3>
@@ -70,46 +70,29 @@ def right_issue_calculator_page():
         st.markdown("### 💼 Skenario Aksi")
         
         # Skenario 1: Tebus Semua
-        st.markdown("""
-        <div class='premium-card'>
-            <h4 style='color: #3b82f6; margin-top:0;'>✅ Skenario 1: Tebus Semua (Exercise)</h4>
-            <p>Anda menggunakan hak anda untuk membeli saham baru di harga tebus.</p>
-        """, unsafe_allow_html=True)
-        
-        col_s1_a, col_s1_b = st.columns(2)
-        with col_s1_a:
-            st.write(f"**Hak HMETD:** {jumlah_hmetd_lot:,.2f} Lot ({jumlah_hmetd_lembar:,.0f} lembar)")
-            st.write(f"**Modal Penebusan:** {format_rupiah(biaya_tebus)}")
-        with col_s1_b:
-            # Est Value after exercise
-            # New Avg Price usually = Harga Teoritis (assuming bought at Cum Price)
-            # Total Asset = (Lot Awal + Lot HMETD) * Harga Teoritis
-            total_lot_akhir = modal_lot + jumlah_hmetd_lot
-            estimasi_aset = total_lot_akhir * 100 * harga_teoritis
-            st.write(f"**Total Lot Akhir:** {total_lot_akhir:,.2f} Lot")
-            st.write(f"**Estimasi Nilai Aset:** {format_rupiah(estimasi_aset)}")
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("<h4 style='color: #3b82f6; margin-top:0;'>✅ Skenario 1: Tebus Semua (Exercise)</h4><p style='margin-bottom: 12px; font-size: 14px; opacity: 0.85;'>Anda menggunakan hak anda untuk membeli saham baru di harga tebus.</p>", unsafe_allow_html=True)
+            col_s1_a, col_s1_b = st.columns(2)
+            with col_s1_a:
+                st.write(f"**Hak HMETD:** {jumlah_hmetd_lot:,.2f} Lot ({jumlah_hmetd_lembar:,.0f} lembar)")
+                st.write(f"**Modal Penebusan:** {format_rupiah(biaya_tebus)}")
+            with col_s1_b:
+                total_lot_akhir = modal_lot + jumlah_hmetd_lot
+                estimasi_aset = total_lot_akhir * 100 * harga_teoritis
+                st.write(f"**Total Lot Akhir:** {total_lot_akhir:,.2f} Lot")
+                st.write(f"**Estimasi Nilai Aset:** {format_rupiah(estimasi_aset)}")
         
         # Skenario 2: Jual Rights
-        st.markdown("""
-        <div class='premium-card'>
-            <h4 style='color: #ef4444; margin-top:0;'>❌ Skenario 2: Tidak Tebus (Jual Right)</h4>
-            <p>Anda menjual HMETD anda di pasar saat periode perdagangan (Asumsi jual di Harga Wajar Teoritis).</p>
-        """, unsafe_allow_html=True)
-        
-        col_s2_a, col_s2_b = st.columns(2)
-        with col_s2_a:
-            # Sell rights
-            # Proceeds = HMETD * Harga Wajar * (1 - Fee)
-            # Note: Fee sell applies to Right trading too usually
-            proceeds = jumlah_hmetd_lembar * harga_wajar_right * (1 - fee_jual)
-            st.write(f"**Hak HMETD Dijual:** {jumlah_hmetd_lot:,.2f} Lot")
-            st.write(f"**Estimasi Uang Tunai Diterima:** {format_rupiah(proceeds)}")
-        with col_s2_b:
-            # Holding remains same, price drops to Theoretical
-            aset_saham = modal_lot * 100 * harga_teoritis
-            total_wealth = aset_saham + proceeds
-            st.write(f"**Sisa Aset Saham:** {format_rupiah(aset_saham)}")
-            st.write(f"**Total Kekayaan:** {format_rupiah(total_wealth)}")
-            st.write(f"*(Aset Saham + Tunai Jual Right)*")
-        st.markdown("</div>", unsafe_allow_html=True)
+        with st.container(border=True):
+            st.markdown("<h4 style='color: #ef4444; margin-top:0;'>❌ Skenario 2: Tidak Tebus (Jual Right)</h4><p style='margin-bottom: 12px; font-size: 14px; opacity: 0.85;'>Anda menjual HMETD anda di pasar saat periode perdagangan (Asumsi jual di Harga Wajar Teoritis).</p>", unsafe_allow_html=True)
+            col_s2_a, col_s2_b = st.columns(2)
+            with col_s2_a:
+                proceeds = jumlah_hmetd_lembar * harga_wajar_right * (1 - fee_jual)
+                st.write(f"**Hak HMETD Dijual:** {jumlah_hmetd_lot:,.2f} Lot")
+                st.write(f"**Estimasi Uang Tunai Diterima:** {format_rupiah(proceeds)}")
+            with col_s2_b:
+                aset_saham = modal_lot * 100 * harga_teoritis
+                total_wealth = aset_saham + proceeds
+                st.write(f"**Sisa Aset Saham:** {format_rupiah(aset_saham)}")
+                st.write(f"**Total Kekayaan:** {format_rupiah(total_wealth)}")
+                st.caption("*(Aset Saham + Tunai Jual Right)*")

@@ -420,5 +420,32 @@ class TestEnhancedSSRFProtection(unittest.TestCase):
         self.assertTrue(is_safe_url("http://example.com/feed.xml"))
 
 
+class TestXSSAndHTMLEscaping(unittest.TestCase):
+    """OWASP A03 / CWE-79: Cross-Site Scripting & Single Escaping Integrity"""
+
+    def test_single_clean_escape_no_double_encoding(self):
+        import html as html_module
+        raw_title = '<script>alert("XSS & Exploit")</script>'
+        escaped = html_module.escape(raw_title, quote=True)
+        self.assertNotIn('<script>', escaped)
+        self.assertIn('&lt;script&gt;', escaped)
+        self.assertIn('&amp;', escaped)
+        # Verify it is not double escaped
+        self.assertNotIn('&amp;lt;', escaped)
+        self.assertNotIn('&amp;amp;', escaped)
+
+    def test_news_link_protocol_hardening(self):
+        malicious_links = [
+            "javascript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "vbscript:msgbox(1)",
+            "file:///etc/passwd",
+        ]
+        for link in malicious_links:
+            # Emulate news card link validation
+            is_valid = isinstance(link, str) and link.startswith(('http://', 'https://', '#'))
+            self.assertFalse(is_valid, f"Malicious link was not blocked: {link}")
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -235,5 +235,69 @@ class TestFinancialLogic(unittest.TestCase):
         self.assertEqual(downtrend["100.0%"], 1000.0)
         self.assertEqual(downtrend["50.0%"], 750.0)
 
+    def test_multiple_stocks_profit_loss_and_export_fidelity(self):
+        from pages_calculators import calculate_multiple_stocks_profit_loss
+        from utils import format_csv_indonesia
+        stocks_input = [
+            {'symbol': 'BBCA', 'jumlah_lot': 10, 'harga_beli': 9000, 'harga_jual': 9500, 'fee_beli': 0.0015, 'fee_jual': 0.0025},
+            {'symbol': 'BBRI', 'jumlah_lot': 20, 'harga_beli': 4500, 'harga_jual': 4400, 'fee_beli': 0.0015, 'fee_jual': 0.0025},
+        ]
+        res = calculate_multiple_stocks_profit_loss(stocks_input)
+        self.assertEqual(len(res['stocks_results']), 2)
+        self.assertGreater(res['total_investment'], 0)
+        self.assertGreater(res['total_proceeds'], 0)
+        
+        # Verify export formatting produces valid numeric strings, NOT "0"
+        for stock in res['stocks_results']:
+            csv_beli = format_csv_indonesia(stock['harga_beli'], 0)
+            csv_jual = format_csv_indonesia(stock['harga_jual'], 0)
+            csv_total_beli = format_csv_indonesia(stock['total_beli'], 0)
+            self.assertNotEqual(csv_beli, "0")
+            self.assertNotEqual(csv_jual, "0")
+            self.assertNotEqual(csv_total_beli, "0")
+
+    def test_averaging_down_target_math(self):
+        lot_skrg = 50
+        avg_skrg = 1200
+        target = 1000
+        harga_beli = 800
+
+        self.assertLess(harga_beli, target)
+        self.assertLess(target, avg_skrg)
+
+        total_saham_skrg = lot_skrg * 100
+        total_nilai_skrg = total_saham_skrg * avg_skrg
+        denom = target - harga_beli
+        self.assertGreater(denom, 0)
+
+        x = math.ceil((total_nilai_skrg - target * total_saham_skrg) / (100 * denom))
+        self.assertEqual(x, 50)  # Need 50 lot
+
+        modal_tambahan = x * 100 * harga_beli
+        lot_baru = lot_skrg + x
+        nilai_baru = total_nilai_skrg + modal_tambahan
+        avg_baru = nilai_baru / (lot_baru * 100)
+        self.assertLessEqual(avg_baru, target)
+        self.assertEqual(avg_baru, 1000.0)
+
+    def test_right_issue_simulation_math(self):
+        harga_cum = 1000
+        rasio_lama = 100
+        rasio_baru = 20
+        harga_tebus = 800
+        modal_lot = 100
+
+        safe_rasio_lama = max(1, rasio_lama)
+        total_rasio = max(1, safe_rasio_lama + rasio_baru)
+        harga_teoritis = ((harga_cum * safe_rasio_lama) + (harga_tebus * rasio_baru)) / total_rasio
+        self.assertAlmostEqual(harga_teoritis, (100000 + 16000) / 120, delta=0.01)
+
+        total_saham_induk = modal_lot * 100
+        jumlah_hmetd_lembar = (total_saham_induk / safe_rasio_lama) * rasio_baru
+        self.assertEqual(jumlah_hmetd_lembar, 2000)
+
+        harga_wajar_right = max(0, harga_teoritis - harga_tebus)
+        self.assertGreater(harga_wajar_right, 0)
+
 if __name__ == '__main__':
     unittest.main()

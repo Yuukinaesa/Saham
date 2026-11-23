@@ -1111,9 +1111,9 @@ def render_news_card(item, show_sentiment=False):
     """
     import html as html_module
     
-    title = html_module.escape(str(item.get('title', 'No Title')))
+    raw_title = str(item.get('title', 'No Title'))
     link = item.get('link', '#')
-    publisher = html_module.escape(str(item.get('publisher', 'Unknown')))
+    raw_publisher = str(item.get('publisher', 'Unknown'))
     
     # Security: Only allow http/https links (prevent javascript: XSS)
     if not isinstance(link, str) or not link.startswith(('http://', 'https://', '#')):
@@ -1139,10 +1139,10 @@ def render_news_card(item, show_sentiment=False):
         else:
             badge_html = f"<span style='background: #9ca3af20; color: #9ca3af; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;'>⚪ NETRAL</span>"
     
-    # Security: HTML-escape link, title, and publisher for safe HTML embedding (CWE-79 XSS defense)
+    # Security: Single clean HTML-escape for link, title, and publisher (CWE-79 XSS defense)
     safe_link = html_module.escape(link, quote=True)
-    safe_title = html_module.escape(str(title))
-    safe_publisher = html_module.escape(str(publisher))
+    safe_title = html_module.escape(raw_title, quote=True)
+    safe_publisher = html_module.escape(raw_publisher, quote=True)
     
     st.markdown(f"""
     <div style='background-color: var(--secondary-background-color); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(128,128,128,0.2);'>
