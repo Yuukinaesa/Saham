@@ -1,6 +1,8 @@
 import re
 import time
 import math
+import ipaddress
+from urllib.parse import urlparse
 from typing import Dict, List, Tuple
 
 import pandas as pd
@@ -58,14 +60,74 @@ def validate_numeric_input(value: float, min_val: float = 0, max_val: float = MA
         return min_val
 
 
-def sanitize_url(url: str) -> str:
-    """Validate URL to only allow http/https schemes. Prevents javascript: XSS."""
+BLOCKED_SSRF_HOSTS = frozenset({
+    'localhost', '127.0.0.1', '::1', '0.0.0.0', '169.254.169.254',
+    'metadata.google.internal', 'instance-data',
+})
+
+
+def is_safe_url(url: str) -> bool:
+    """Validate URL scheme and ensure host is not a private/loopback IP or cloud metadata service (CWE-918)."""
     if not isinstance(url, str):
-        return '#'
+        return False
     url = url.strip()
-    if url.startswith(('http://', 'https://')):
-        return url
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        hostname = hostname.lower()
+        if hostname in BLOCKED_SSRF_HOSTS or hostname.endswith(('.local', '.internal')):
+            return False
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+                return False
+        except ValueError:
+            pass  # Normal domain name
+        return True
+    except Exception:
+        return False
+
+
+def sanitize_url(url: str) -> str:
+    """Validate URL to only allow safe public http/https schemes. Prevents XSS and SSRF."""
+    if is_safe_url(url):
+        return url.strip()
     return '#'
+
+
+def sanitize_csv_cell(val: any) -> str:
+    """Sanitize cell text to prevent CSV Formula Injection (CWE-1236).
+    
+    If text begins with spreadsheet formula operators (=, +, -, @, tab, newline),
+    and is not purely a signed numeric value, prepend a single quote (')
+    to force spreadsheet applications to treat it as a literal string.
+    """
+    if val is None:
+        return ""
+    if isinstance(val, float) and math.isnan(val):
+        return ""
+    s = str(val)
+    if not s:
+        return ""
+    if s[0] in ('=', '+', '-', '@', '\t', '\r'):
+        # Allow legitimate signed numeric strings like "-500", "+25%", "-1.5"
+        cleaned_num = s.lstrip('+-').rstrip('%').replace('.', '').replace(',', '')
+        if cleaned_num.isdigit():
+            return s
+        return f"'{s}"
+    return s
+
+
+def safe_dataframe_to_csv(df: pd.DataFrame, sep: str = ';', **kwargs) -> str:
+    """Export a DataFrame to CSV with all cells sanitized against CSV Formula Injection."""
+    df_clean = df.copy()
+    for col in df_clean.columns:
+        df_clean[col] = df_clean[col].apply(sanitize_csv_cell)
+    return df_clean.to_csv(sep=sep, encoding='utf-8-sig', quoting=1, **kwargs)
 
 # Financial Logic Constants
 def get_tick_size(price: float) -> int:

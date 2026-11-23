@@ -3,12 +3,15 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import plotly.graph_objects as go
-from utils import format_rupiah, format_number, get_resilient_session
+from utils import format_rupiah, format_number, get_resilient_session, sanitize_stock_symbol
 from state_manager import get_param, set_param
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_ohlc_data(symbol):
     try:
+        symbol = sanitize_stock_symbol(symbol)
+        if not symbol:
+            return None
         sess = get_resilient_session()
         ticker = yf.Ticker(f"{symbol}.JK", session=sess)
         # Get data for last 2 days to ensure we have yesterday's full close
@@ -117,7 +120,8 @@ def technical_tools_page():
         
         if input_source == "Auto (Hari Sebelumnya)":
             _saved_psym = get_param("tt_psym", "BBRI")
-            symbol = st.text_input("Kode Saham (Contoh: BBRI)", value=_saved_psym).upper()
+            raw_psym = st.text_input("Kode Saham (Contoh: BBRI)", value=_saved_psym).upper()
+            symbol = sanitize_stock_symbol(raw_psym)
             if st.button("Ambil Data Pivot"):
                  set_param("tt_psym", symbol)  # Simpan ke URL
                  with st.spinner(f"Mengambil data {symbol}..."):
@@ -209,7 +213,8 @@ def technical_tools_page():
 
         if fib_source == "Auto (1 Bulan Terakhir)":
              _saved_fsym = get_param("tt_fsym", "BBRI")
-             symbol_fib = st.text_input("Kode Saham (Fibo)", value=_saved_fsym).upper()
+             raw_fsym = st.text_input("Kode Saham (Fibo)", value=_saved_fsym).upper()
+             symbol_fib = sanitize_stock_symbol(raw_fsym)
              if st.button("Ambil Data Swing"):
                  set_param("tt_fsym", symbol_fib)  # Simpan ke URL
                  with st.spinner(f"Mencari Swing High/Low {symbol_fib}..."):

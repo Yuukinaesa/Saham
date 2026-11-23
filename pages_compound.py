@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 
-from utils import format_rupiah, format_csv_indonesia
+from utils import format_rupiah, format_csv_indonesia, safe_dataframe_to_csv
 
 
 def calculate_compound_interest(firstm: float, rate: float, years: float, additional_investment: float = 0) -> pd.DataFrame:
@@ -87,7 +87,7 @@ def compound_interest_page() -> None:
                     st.dataframe(df_display.set_index(df_display.index + 1), use_container_width=True, height=400)
                     df_download = df.copy()
                     df_download['Amount'] = df_download['Amount'].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
-                    csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+                    csv = safe_dataframe_to_csv(df_download, index=False)
                     st.download_button(label="📥 Download as CSV", data=csv, file_name="compound_interest.csv", mime="text/csv")
                 for year_num in range(1, int(years) + 1):
                     yearly_data = df_display[df_display['Year'] == year_num]

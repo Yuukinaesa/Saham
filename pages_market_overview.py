@@ -1,3 +1,4 @@
+import html
 import streamlit as st
 import pandas as pd
 import yfinance as yf
@@ -221,9 +222,10 @@ def market_overview_page():
         st.markdown("#### 🚀 Top Gainers")
         top_g = df.sort_values(by="Change %", ascending=False).head(10)
         for _, row in top_g.iterrows():
+            sym_clean = html.escape(str(row['Symbol']))
             st.markdown(f"""
             <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(16,185,129,0.1); border-radius:4px;'>
-                <span style='font-weight:bold;'>{row['Symbol']}</span>
+                <span style='font-weight:bold;'>{sym_clean}</span>
                 <span style='color:#10b981; font-weight:bold;'>+{row['Change %']:.2f}%</span>
             </div>
             """, unsafe_allow_html=True)
@@ -232,9 +234,10 @@ def market_overview_page():
         st.markdown("#### 🔻 Top Losers")
         top_l = df.sort_values(by="Change %", ascending=True).head(10)
         for _, row in top_l.iterrows():
-             st.markdown(f"""
+            sym_clean = html.escape(str(row['Symbol']))
+            st.markdown(f"""
             <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(239,68,68,0.1); border-radius:4px;'>
-                <span style='font-weight:bold;'>{row['Symbol']}</span>
+                <span style='font-weight:bold;'>{sym_clean}</span>
                 <span style='color:#ef4444; font-weight:bold;'>{row['Change %']:.2f}%</span>
             </div>
             """, unsafe_allow_html=True)
@@ -246,10 +249,11 @@ def market_overview_page():
         st.markdown("#### 🌊 Most Active Volume")
         top_v = df.sort_values(by="Volume", ascending=False).head(10)
         for _, row in top_v.iterrows():
+            sym_clean = html.escape(str(row['Symbol']))
             vol_lot = row['Volume'] / 100
             st.markdown(f"""
             <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:var(--secondary-background-color); border-radius:4px; border: 1px solid rgba(128,128,128,0.2);'>
-                <span style='font-weight:bold;'>{row['Symbol']}</span>
+                <span style='font-weight:bold;'>{sym_clean}</span>
                 <span style='font-weight:bold; opacity: 0.9;'>{format_large_number(vol_lot)} Lot</span>
             </div>
             """, unsafe_allow_html=True)
@@ -258,9 +262,10 @@ def market_overview_page():
         st.markdown("#### 💼 Most Active Value (Turnover)")
         top_t = df.sort_values(by="Turnover", ascending=False).head(10)
         for _, row in top_t.iterrows():
+            sym_clean = html.escape(str(row['Symbol']))
             st.markdown(f"""
             <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:var(--secondary-background-color); border-radius:4px; border: 1px solid rgba(128,128,128,0.2);'>
-                <span style='font-weight:bold;'>{row['Symbol']}</span>
+                <span style='font-weight:bold;'>{sym_clean}</span>
                 <span style='font-weight:bold; color:#3b82f6;'>Rp {format_large_number(row['Turnover'])}</span>
             </div>
             """, unsafe_allow_html=True)
@@ -275,9 +280,10 @@ def market_overview_page():
         if top_acc.empty:
             st.info("Tidak ada data akumulasi.")
         for _, row in top_acc.iterrows():
+            sym_clean = html.escape(str(row['Symbol']))
             st.markdown(f"""
             <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(16,185,129,0.1); border-radius:4px; border: 1px solid rgba(16,185,129,0.3);'>
-                <span style='font-weight:bold;'>{row['Symbol']}</span>
+                <span style='font-weight:bold;'>{sym_clean}</span>
                 <div style='text-align: right;'>
                     <span style='color:#10b981; font-weight:bold; font-size: 13px; display:block;'>+{row['Change %']:.2f}%</span>
                     <span style='font-weight:600; font-size: 11px; opacity: 0.8;'>Rp {format_large_number(row['Turnover'])}</span>
@@ -292,9 +298,10 @@ def market_overview_page():
         if top_dist.empty:
             st.info("Tidak ada data distribusi.")
         for _, row in top_dist.iterrows():
+            sym_clean = html.escape(str(row['Symbol']))
             st.markdown(f"""
             <div style='display:flex; justify-content:space-between; margin-bottom:8px; padding:8px; background-color:rgba(239,68,68,0.1); border-radius:4px; border: 1px solid rgba(239,68,68,0.3);'>
-                <span style='font-weight:bold;'>{row['Symbol']}</span>
+                <span style='font-weight:bold;'>{sym_clean}</span>
                 <div style='text-align: right;'>
                     <span style='color:#ef4444; font-weight:bold; font-size: 13px; display:block;'>{row['Change %']:.2f}%</span>
                     <span style='font-weight:600; font-size: 11px; opacity: 0.8;'>Rp {format_large_number(row['Turnover'])}</span>

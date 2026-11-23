@@ -13,6 +13,7 @@ from utils import (
     format_number,
     format_short_number,
     format_csv_indonesia,
+    safe_dataframe_to_csv,
 )
 from utils import fetch_enhanced_stock_data
 from state_manager import get_param, set_param
@@ -166,7 +167,7 @@ def stock_screener_page() -> None:
                     else:
                         # keep strings like Symbol, ROE Change, ROA Change as-is
                         df_download[col] = df_download[col].astype(str)
-                csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+                csv = safe_dataframe_to_csv(df_download, index=False)
                 st.download_button(label='📥 Download as CSV', data=csv, file_name='screener_saham.csv', mime='text/csv')
 
                 # Hilangkan opsi debug/raw

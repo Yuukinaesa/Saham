@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 
 from config import PLATFORM_CONFIG, FRACSI_HARGA_DATA
-from utils import format_rupiah, format_percent, format_csv_indonesia, get_tick_size, get_ara_arb_percentage, round_price_to_tick
+from utils import format_rupiah, format_percent, format_csv_indonesia, safe_dataframe_to_csv, get_tick_size, get_ara_arb_percentage, round_price_to_tick
 import math
 
 
@@ -344,7 +344,7 @@ def single_stock_calculator(title: str, fee_beli: float, fee_jual: float) -> Non
                         'Profit/Loss %': format_csv_indonesia(profit_loss_percentage, 2),
                     }
                 ])
-                csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+                csv = safe_dataframe_to_csv(df_download, index=False)
                 st.download_button(label="📥 Download as CSV", data=csv, file_name="kalkulator_saham_single.csv", mime="text/csv")
 
 
@@ -440,7 +440,7 @@ def multiple_stocks_calculator(title: str, fee_beli: float, fee_jual: float) -> 
                     df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 0) if pd.notna(x) else "0")
                 elif col in ['Profit/Loss %']:
                     df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 2) if pd.notna(x) else "0")
-            csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+            csv = safe_dataframe_to_csv(df_download, index=False)
             st.download_button(label="📥 Download as CSV", data=csv, file_name="kalkulator_saham.csv", mime="text/csv")
 
 

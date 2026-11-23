@@ -10,6 +10,7 @@ from utils import (
     round_price_to_tick,
     normalize_pbv,
     _safe_float,
+    sanitize_stock_symbol,
     get_resilient_session,
     fetch_direct_quote_summary,
 )
@@ -333,6 +334,9 @@ def get_stock_data(symbol):
     """
     Mengambil data lengkap saham: History, Info Fundamental, News (Multi-Source), dan Analisa.
     """
+    symbol = sanitize_stock_symbol(symbol)
+    if not symbol:
+        return None
     try:
         ticker_symbol = f"{symbol}.JK" if not symbol.endswith(".JK") and not symbol.startswith("^") else symbol
         
@@ -597,12 +601,16 @@ def render_signal_card(label, signal, color, reason):
         "gray": "#9ca3af", "orange": "#f59e0b", "red": "#ef4444"
     }
     hex_color = color_map.get(color, "#9ca3af")
+    import html as html_mod
+    safe_label = html_mod.escape(str(label))
+    safe_signal = html_mod.escape(str(signal))
+    safe_reason = html_mod.escape(str(reason))
     
     st.markdown(f"""
     <div style='text-align: center; padding: 15px; background-color: {hex_color}15; border: 1px solid {hex_color}; border-radius: 10px; margin-bottom: 10px;'>
-        <p style='margin:0; font-size: 12px; opacity: 0.8;'>{label}</p>
-        <h3 style='color: {hex_color}; margin: 5px 0;'>{signal}</h3>
-        <p style='margin:0; font-size: 11px; opacity: 0.7;'>{reason}</p>
+        <p style='margin:0; font-size: 12px; opacity: 0.8;'>{safe_label}</p>
+        <h3 style='color: {hex_color}; margin: 5px 0;'>{safe_signal}</h3>
+        <p style='margin:0; font-size: 11px; opacity: 0.7;'>{safe_reason}</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1131,15 +1139,17 @@ def render_news_card(item, show_sentiment=False):
         else:
             badge_html = f"<span style='background: #9ca3af20; color: #9ca3af; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;'>⚪ NETRAL</span>"
     
-    # Security: HTML-escape link for safe attribute embedding
+    # Security: HTML-escape link, title, and publisher for safe HTML embedding (CWE-79 XSS defense)
     safe_link = html_module.escape(link, quote=True)
+    safe_title = html_module.escape(str(title))
+    safe_publisher = html_module.escape(str(publisher))
     
     st.markdown(f"""
     <div style='background-color: var(--secondary-background-color); padding: 12px; border-radius: 8px; margin-bottom: 10px; border: 1px solid rgba(128,128,128,0.2);'>
         <div style='margin-bottom: 5px;'>{badge_html}</div>
-        <a href='{safe_link}' target='_blank' rel='noopener noreferrer' style='text-decoration: none; color: var(--text-color); font-weight: 600; font-size: 15px;'>{title}</a>
+        <a href='{safe_link}' target='_blank' rel='noopener noreferrer' style='text-decoration: none; color: var(--text-color); font-weight: 600; font-size: 15px;'>{safe_title}</a>
         <div style='display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; opacity: 0.7;'>
-            <span>📰 {publisher}</span>
+            <span>📰 {safe_publisher}</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1265,7 +1275,8 @@ def analysis_dashboard_page():
     _saved_sym = get_param("a_sym", "BBRI")
     col_search, col_btn = st.columns([3, 1])
     with col_search:
-        symbol = st.text_input("💎 Masukkan Kode Saham", value=_saved_sym, label_visibility="collapsed", placeholder="Contoh: BBRI").upper()
+        raw_symbol = st.text_input("💎 Masukkan Kode Saham", value=_saved_sym, label_visibility="collapsed", placeholder="Contoh: BBRI").upper()
+        symbol = sanitize_stock_symbol(raw_symbol)
     with col_btn:
         analyze_btn = st.button("🔍 Analisa Sekarang", type="primary", use_container_width=True)
     
@@ -1276,6 +1287,9 @@ def analysis_dashboard_page():
         st.session_state['analysis_symbol'] = ""
 
     if analyze_btn:
+        if not symbol:
+            st.warning("⚠️ Masukkan kode saham yang valid.")
+            return
         set_param("a_sym", symbol)  # Simpan ke URL
         with st.spinner(f"Sedang membedah data {symbol}..."):
             data = get_stock_data(symbol)

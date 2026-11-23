@@ -55,6 +55,9 @@ from utils import (
     get_ara_arb_percentage,
     round_price_to_tick,
     _safe_float,
+    sanitize_csv_cell,
+    safe_dataframe_to_csv,
+    is_safe_url,
     MAX_SYMBOL_LENGTH,
     MAX_SYMBOLS_PER_REQUEST,
 )
@@ -364,6 +367,57 @@ class TestSafeFloat(unittest.TestCase):
 
     def test_negative(self):
         self.assertEqual(_safe_float(-500), -500.0)
+
+
+class TestCSVFormulaInjection(unittest.TestCase):
+    """CWE-1236: CSV Formula Injection Prevention Tests"""
+
+    def test_sanitize_csv_cell_escapes_formulas(self):
+        # Formulas starting with =, +, -, @ must be prefixed with single quote
+        self.assertEqual(sanitize_csv_cell("=1+1"), "'=1+1")
+        self.assertEqual(sanitize_csv_cell("=cmd|'/C calc'!A0"), "'=cmd|'/C calc'!A0")
+        self.assertEqual(sanitize_csv_cell("@SUM(A1:A10)"), "'@SUM(A1:A10)")
+        self.assertEqual(sanitize_csv_cell("-2+3+cmd"), "'-2+3+cmd")
+        self.assertEqual(sanitize_csv_cell("+cmd"), "'+cmd")
+
+    def test_sanitize_csv_cell_preserves_legitimate_numbers(self):
+        # Legitimate numbers should NOT be quoted
+        self.assertEqual(sanitize_csv_cell("1000"), "1000")
+        self.assertEqual(sanitize_csv_cell("-500"), "-500")
+        self.assertEqual(sanitize_csv_cell("+25%"), "+25%")
+        self.assertEqual(sanitize_csv_cell("-1.5%"), "-1.5%")
+        self.assertEqual(sanitize_csv_cell(1234), "1234")
+
+    def test_safe_dataframe_to_csv(self):
+        import pandas as pd
+        df = pd.DataFrame({
+            'Symbol': ['BBCA', '=SUM(1,2)', '@EXPLOIT'],
+            'Price': [5000, 1000, 2000]
+        })
+        csv_out = safe_dataframe_to_csv(df, index=False)
+        self.assertIn("'=SUM(1,2)", csv_out)
+        self.assertIn("'@EXPLOIT", csv_out)
+        self.assertIn("BBCA", csv_out)
+
+
+class TestEnhancedSSRFProtection(unittest.TestCase):
+    """OWASP A10 / CWE-918: Advanced SSRF & Metadata Protection"""
+
+    def test_is_safe_url_blocks_private_ips(self):
+        self.assertFalse(is_safe_url("http://127.0.0.1/admin"))
+        self.assertFalse(is_safe_url("http://localhost:8501"))
+        self.assertFalse(is_safe_url("http://10.0.0.1/secret"))
+        self.assertFalse(is_safe_url("http://192.168.1.1/router"))
+        self.assertFalse(is_safe_url("http://172.16.0.1/internal"))
+
+    def test_is_safe_url_blocks_cloud_metadata(self):
+        self.assertFalse(is_safe_url("http://169.254.169.254/latest/meta-data"))
+        self.assertFalse(is_safe_url("http://metadata.google.internal/computeMetadata/v1/"))
+
+    def test_is_safe_url_allows_public_web(self):
+        self.assertTrue(is_safe_url("https://www.idx.co.id"))
+        self.assertTrue(is_safe_url("https://finance.yahoo.com"))
+        self.assertTrue(is_safe_url("http://example.com/feed.xml"))
 
 
 if __name__ == '__main__':

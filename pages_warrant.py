@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 
 from config import PLATFORM_CONFIG
-from utils import format_rupiah, format_percent, format_csv_indonesia
+from utils import format_rupiah, format_percent, format_csv_indonesia, safe_dataframe_to_csv
 
 
 def warrant_calculator_page() -> None:
@@ -107,7 +107,7 @@ def single_warrant_calculator(fee_beli: float, fee_jual: float) -> None:
                 'Persentase Keuntungan': [format_csv_indonesia(persentase_keuntungan, 2)]
             }
             df_warrant = pd.DataFrame(warrant_data)
-            csv = df_warrant.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+            csv = safe_dataframe_to_csv(df_warrant, index=False)
             st.download_button(label="📥 Download as CSV", data=csv, file_name="warrant_calculator.csv", mime="text/csv")
 
 
@@ -185,5 +185,5 @@ def multiple_warrant_calculator(fee_beli: float, fee_jual: float) -> None:
                 df_download[col] = df_download[col].apply(lambda x: format_csv_indonesia(x, 0))
             df_download['Persentase %'] = df_download['Persentase %'].apply(lambda x: format_csv_indonesia(x, 2))
             
-            csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+            csv = safe_dataframe_to_csv(df_download, index=False)
             st.download_button(label="📥 Download as CSV", data=csv, file_name="multiple_warrant_calculator.csv", mime="text/csv")

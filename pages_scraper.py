@@ -13,6 +13,7 @@ from utils import (
     format_percent,
     format_number,
     format_csv_indonesia,
+    safe_dataframe_to_csv,
 )
 
 
@@ -163,7 +164,7 @@ def stock_scraper_page() -> None:
                     elif col in ['Diluted EPS (ttm) (EPS)']:
                         df_download[col] = df_download[col].apply(lambda x: '-' if (pd.isna(x) or x == 0) else format_csv_indonesia(x, 0))
 
-                csv = df_download.to_csv(index=False, sep=';', encoding='utf-8-sig', quoting=1)
+                csv = safe_dataframe_to_csv(df_download, index=False)
                 st.download_button(
                     label="📥 Download as CSV",
                     data=csv,
