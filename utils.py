@@ -531,7 +531,8 @@ def fetch_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]:
             if current_price is None:
                 failed_symbols.append((symbol, 'No price data in response'))
                 continue
-            forward_dividend_yield = _safe_float(info.get('dividendYield', 0))
+            raw_dy = _safe_float(info.get('dividendYield', 0))
+            forward_dividend_yield = (raw_dy * 100) if (0 < raw_dy < 0.5) else raw_dy
             roe = _safe_float(info.get('returnOnEquity', 0))
             trailing_pe = _safe_float(info.get('trailingPE', 0))
             raw_pbv = _safe_float(info.get('priceToBook', 0))
@@ -662,7 +663,7 @@ def fetch_enhanced_stock_data(symbols: List[str]) -> Dict[str, Dict[str, float]]
                 'Total Equity': _safe_float(info.get('totalStockholderEquity', 0)),
                 'Total Liabilities': _safe_float(info.get('totalDebt', 0)),
                 'EPS': _safe_float(info.get('trailingEps', 0)),
-                'Dividend Yield %': _safe_float(info.get('dividendYield', 0)),
+                'Dividend Yield %': ((_safe_float(info.get('dividendYield', 0)) * 100) if (0 < _safe_float(info.get('dividendYield', 0)) < 0.5) else _safe_float(info.get('dividendYield', 0))),
             }
         except Exception as e:
             logger.error(f"Exception in enhanced fetch for {symbol}: {type(e).__name__}: {e}")
